@@ -12,3 +12,5 @@ qt_add_qml_module(pond_wifi_status
 target_include_directories(pond_wifi_status PRIVATE lockscreen/frontend/system)
 target_link_libraries(pond_wifi_status PRIVATE KF6::NetworkManagerQt)
 set_target_properties(pond_wifi_statusplugin PROPERTIES INSTALL_RPATH "$ORIGIN")
+
+add_subdirectory(localization)

@@ -1,0 +1,5 @@
+{
+  "localization.invalid_language": "Invalid interface language",
+  "localization.save_failed": "Could not save interface language",
+  "settings.interface_language": "Interface language"
+}
