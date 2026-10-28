@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 
+import Pond.Localization
 import QtQuick
 import "." as Settings
 import "appearance" as Appearance
@@ -241,7 +242,7 @@ PanelWindow {
     active: root.presented && (root.modalOpen || opacity > 0)
     sourceComponent: ({
       information: informationPage, manual: manualPage, display: displayPage, arrange: arrangePage,
-      system: systemPage, mouse: mousePage, keyboard: keyboardPage, timezone: timezonePage
+      system: systemPage, mouse: mousePage, keyboard: keyboardPage, timezone: timezonePage, "interface-language": interfaceLanguagePage
     })[root.displayedPage] || appearancePage
     enabled: root.modalOpen
     opacity: root.modalOpen ? 1 : 0
@@ -298,6 +299,23 @@ PanelWindow {
       title: "Keyboard language"; placeholder: "Search languages"; multiple: true
       options: System.State.languages; selected: System.State.selectedLanguages
       onPicked: id => System.State.toggleLanguage(id)
+      availableHeight: Math.max(200, root.height - 70)
+      scale: Math.min(1, (root.width - 60) / implicitWidth)
+    }
+  }
+  Component {
+    id: interfaceLanguagePage
+    System.Picker {
+      title: qsTrId("settings.interface_language")
+      placeholder: qsTrId("pond.search_languages")
+      options: [{id: "system", label: qsTrId("settings.follow_system")}].concat(Localization.availableLanguages)
+      selected: [Localization.preference]
+      onPicked: language => {
+        if (!Localization.setPreference(language)) {
+          System.State.error = qsTrId("localization.save_failed");
+          Settings.State.back();
+        }
+      }
       availableHeight: Math.max(200, root.height - 70)
       scale: Math.min(1, (root.width - 60) / implicitWidth)
     }

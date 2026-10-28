@@ -1,3 +1,4 @@
+import Pond.Localization
 import QtQuick
 import "." as System
 import ".." as Settings
@@ -24,6 +25,13 @@ Settings.Modal {
       width: parent.width; navigation: true
       title: "Keyboard language"; value: System.State.languageNames.join(", ")
       onClicked: Settings.State.openPage("keyboard")
+    }
+    Settings.Field {
+      objectName: "systemInterfaceLanguage"
+      width: parent.width; navigation: true
+      title: qsTrId("settings.interface_language")
+      value: Localization.preference === "system" ? qsTrId("settings.follow_system") : Localization.availableLanguages.find(option => option.id === Localization.preference)?.label || ""
+      onClicked: Settings.State.openPage("interface-language")
     }
     Settings.Field {
       objectName: "systemTimezone"

@@ -1,5 +1,7 @@
 {
   "localization.invalid_language": "Invalid interface language",
   "localization.save_failed": "Could not save interface language",
+  "pond.search_languages": "Search languages",
+  "settings.follow_system": "Follow system",
   "settings.interface_language": "Interface language"
 }

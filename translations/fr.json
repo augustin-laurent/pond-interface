@@ -1,5 +1,7 @@
 {
   "localization.invalid_language": "Langue de l’interface invalide",
   "localization.save_failed": "Impossible d’enregistrer la langue de l’interface",
+  "pond.search_languages": "Rechercher une langue",
+  "settings.follow_system": "Suivre le système",
   "settings.interface_language": "Langue de l’interface"
 }
