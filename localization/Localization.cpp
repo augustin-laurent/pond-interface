@@ -78,15 +78,23 @@ public:
         notify();
     }
     void rearm() {
-        const auto files = watcher.files(), dirs = watcher.directories();
-        if (!files.isEmpty()) watcher.removePaths(files);
-        if (!dirs.isEmpty()) watcher.removePaths(dirs);
-        if (!user) return;
-        if (QFile::exists(path)) watcher.addPath(path);
+        if (!user) {
+            if (!watcher.files().isEmpty()) watcher.removePaths(watcher.files());
+            if (!watcher.directories().isEmpty()) watcher.removePaths(watcher.directories());
+            return;
+        }
+        if (QFile::exists(path) && !watcher.files().contains(path)) watcher.addPath(path);
         // The first launch may precede the creation of pond-interface or even XDG_CONFIG_HOME.
-        QDir directory(QFileInfo(path).absolutePath());
-        while (!directory.exists() && directory.cdUp()) {}
-        if (directory.exists()) watcher.addPath(directory.absolutePath());
+        QString directory = QFileInfo(path).absolutePath();
+        while (!QDir(directory).exists()) {
+            const auto parent = QFileInfo(directory).absolutePath();
+            if (parent == directory) break;
+            directory = parent;
+        }
+        for (const auto &oldDirectory : watcher.directories())
+            if (oldDirectory != directory) watcher.removePath(oldDirectory);
+        if (QDir(directory).exists() && !watcher.directories().contains(directory))
+            watcher.addPath(directory);
     }
     void read() {
         if (!user) return;
@@ -123,7 +131,7 @@ Localization *Localization::create(QQmlEngine *engine, QJSEngine *) {
     if (!state) state = new LocalizationState(QCoreApplication::instance());
     return new Localization(engine, state);
 }
-Localization::Localization(QQmlEngine *engine, LocalizationState *state) : m_state(state) {
+Localization::Localization(QQmlEngine *engine, LocalizationState *state) : m_state(state), m_engine(engine) {
     if (!state->engines.contains(engine)) state->engines.append(engine);
     connect(state, &LocalizationState::changed, this, &Localization::changed);
 }
@@ -147,7 +155,11 @@ void Localization::useSystemLocale() {
 }
 bool Localization::setPreference(const QString &language) { return m_state->save(language); }
 QString Localization::timeZoneName(const QString &id) const {
+    m_engine->markCurrentFunctionAsTranslationBinding();
     return QTimeZone(id.toUtf8()).displayName(QDateTime::currentDateTimeUtc(), QTimeZone::LongName, locale());
 }
-QString Localization::number(double value, int decimals) const { return locale().toString(value, 'f', decimals); }
+QString Localization::number(double value, int decimals) const {
+    m_engine->markCurrentFunctionAsTranslationBinding();
+    return locale().toString(value, 'f', decimals);
+}
 #include "Localization.moc"

@@ -34,4 +34,5 @@ signals:
 private:
     explicit Localization(QQmlEngine *engine, LocalizationState *state);
     LocalizationState *m_state;
+    QQmlEngine *m_engine;
 };
