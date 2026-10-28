@@ -79,10 +79,23 @@ and available base catalogs, finally falling back to English. Regional formattin
 follows the system locale in system mode and the selected locale for overrides.
 Dates, times and numbers use Qt formatting, not language-specific branches.
 
-The illustrated manual and its SVG tooltips contain outlined English text. That
-artwork remains a separate localization task; interactive controls and accessible
-QML labels are translated. Externally supplied application/device names, media
-metadata and notification content retain their original text.
+The illustrated manual and its SVG tooltips use localized artwork resolved by
+`Localization.asset(Qt.resolvedUrl("path/to/original.svg"))`. Put a translated
+file with the same name in a sibling language directory, for example
+`shell/assets/manual/fr/manual.svg` or `shell/assets/manual/de/manual.svg`.
+The resolver checks the effective language, then its parent language codes
+(`fr_CA` → `fr`), and finally returns the original English file. Missing artwork
+falls back independently for each file, without attempting to load missing URLs.
+Local files and Qt resources are supported. Selection updates immediately when
+the language changes; no QML change is needed when adding another language's SVGs.
+Keep the SVG dimensions and section positions identical across languages because
+the manual's clipping and hover regions share the same coordinates.
+
+Edit localized artwork directly in its SVG files. The ordinary JSON catalogs do
+not change text inside these SVGs. Interactive controls and
+accessible QML labels continue to use the catalogs. Externally supplied
+application/device names, media metadata and notification content retain their
+original text.
 
 ## Installation, session testing, and rollback
 

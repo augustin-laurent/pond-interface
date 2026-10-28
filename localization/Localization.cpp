@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QFileSystemWatcher>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -161,5 +162,22 @@ QString Localization::timeZoneName(const QString &id) const {
 QString Localization::number(double value, int decimals) const {
     m_engine->markCurrentFunctionAsTranslationBinding();
     return locale().toString(value, 'f', decimals);
+}
+QUrl Localization::asset(const QUrl &fallback) const {
+    m_engine->markCurrentFunctionAsTranslationBinding();
+    if ((!fallback.isLocalFile() && fallback.scheme() != "qrc") || fallback.fileName().isEmpty())
+        return fallback;
+    const auto directory = fallback.adjusted(QUrl::RemoveFilename);
+    auto language = effectiveLanguage();
+    while (!language.isEmpty()) {
+        QUrl relative;
+        relative.setPath(language + '/' + fallback.fileName());
+        const auto candidate = directory.resolved(relative);
+        const auto path = candidate.isLocalFile() ? candidate.toLocalFile() : ':' + candidate.path();
+        if (QFileInfo(path).isFile()) return candidate;
+        const auto cut = language.lastIndexOf('_');
+        language = cut < 0 ? QString() : language.left(cut);
+    }
+    return fallback;
 }
 #include "Localization.moc"

@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QLocale>
+#include <QUrl>
 #include <QVariantList>
 #include <QtQml/qqmlregistration.h>
 
@@ -29,6 +30,7 @@ public:
     Q_INVOKABLE bool setPreference(const QString &language);
     Q_INVOKABLE QString timeZoneName(const QString &id) const;
     Q_INVOKABLE QString number(double value, int decimals = 0) const;
+    Q_INVOKABLE QUrl asset(const QUrl &fallback) const;
 signals:
     void changed();
 private:

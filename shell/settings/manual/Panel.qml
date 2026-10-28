@@ -1,3 +1,4 @@
+import Pond.Localization
 import QtQuick
 import Quickshell.Widgets
 import ".." as Settings
@@ -6,6 +7,8 @@ import "../.." as Shell
 Settings.Modal {
   id: root
   objectName: "manualPanel"
+  // Localized artwork must keep the same document geometry and hover regions.
+  readonly property url manualArtwork: Localization.asset(Qt.resolvedUrl("../../assets/manual/manual.svg"))
   title: ""
   implicitWidth: 500
   implicitHeight: Math.min(672, availableHeight)
@@ -46,7 +49,7 @@ Settings.Modal {
       clip: true
       Image {
         width: 500; height: 2984
-        source: Qt.resolvedUrl("../../assets/manual/manual.svg")
+        source: root.manualArtwork
         sourceSize.width: width * Screen.devicePixelRatio
       }
     }
@@ -55,7 +58,7 @@ Settings.Modal {
       clip: true
       Image {
         y: -1538; width: 500; height: 2984
-        source: Qt.resolvedUrl("../../assets/manual/manual.svg")
+        source: root.manualArtwork
         sourceSize.width: width * Screen.devicePixelRatio
       }
     }
@@ -71,7 +74,7 @@ Settings.Modal {
       Image {
         anchors.fill: parent
         visible: noteHover.hovered
-        source: Qt.resolvedUrl("../../assets/manual/super-note-hover.svg")
+        source: Localization.asset(Qt.resolvedUrl("../../assets/manual/super-note-hover.svg"))
         sourceSize.width: width * Screen.devicePixelRatio
       }
     }
@@ -109,7 +112,7 @@ Settings.Modal {
       color: Settings.Style.card
       Image {
         anchors.fill: parent
-        source: Qt.resolvedUrl("../../assets/manual/super-tip.svg")
+        source: Localization.asset(Qt.resolvedUrl("../../assets/manual/super-tip.svg"))
         sourceSize.width: width * Screen.devicePixelRatio
       }
     }
