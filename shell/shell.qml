@@ -8,12 +8,31 @@ import "settings" as Settings
 import "settings/appearance" as Appearance
 import "notifications" as Notifications
 import Pond.Wallpaper as Wallpaper
+import Pond.System
 
 ShellRoot {
   id: root
   property bool expanded: true
 
   Shortcuts {}
+
+  Logind {
+    id: logind
+    sleepInhibited: true
+    onPreparingForSleepChanged: {
+      if (preparingForSleep)
+        sleepLock.running = true;
+      else
+        sleepInhibited = true;
+    }
+    onLockRequested: Quickshell.execDetached(["python3", Quickshell.shellDir + "/settings/session.py", "lock"])
+  }
+
+  Process {
+    id: sleepLock
+    command: ["sh", "-c", "python3 \"$0\" lock; for _ in $(seq 40); do qs -p /usr/share/pond-interface/lockscreen ipc call lockscreen isSecure 2>/dev/null | grep -qx true && exit; sleep 0.1; done", Quickshell.shellDir + "/settings/session.py"]
+    onExited: if (logind.preparingForSleep) logind.sleepInhibited = false
+  }
 
   FileView {
     path: Quickshell.screens.length
