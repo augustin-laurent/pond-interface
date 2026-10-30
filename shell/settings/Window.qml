@@ -242,7 +242,7 @@ PanelWindow {
     active: root.presented && (root.modalOpen || opacity > 0)
     sourceComponent: ({
       information: informationPage, manual: manualPage, display: displayPage, arrange: arrangePage,
-      system: systemPage, mouse: mousePage, keyboard: keyboardPage, timezone: timezonePage, "interface-language": interfaceLanguagePage
+      system: systemPage, mouse: mousePage, lock: lockPage, keyboard: keyboardPage, timezone: timezonePage, "interface-language": interfaceLanguagePage
     })[root.displayedPage] || appearancePage
     enabled: root.modalOpen
     opacity: root.modalOpen ? 1 : 0
@@ -289,6 +289,13 @@ PanelWindow {
   Component {
     id: mousePage
     System.Mouse {
+      availableHeight: Math.max(200, root.height - 70)
+      scale: Math.min(1, (root.width - 60) / implicitWidth)
+    }
+  }
+  Component {
+    id: lockPage
+    System.Lock {
       availableHeight: Math.max(200, root.height - 70)
       scale: Math.min(1, (root.width - 60) / implicitWidth)
     }
