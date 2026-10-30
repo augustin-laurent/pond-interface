@@ -116,14 +116,25 @@ PanelWindow {
     regions: [timeCard.blurRegion, workspacesCard.blurRegion, mediaCard.blurRegion,
       notificationCard.blurRegion, installsCard.blurRegion, controls.blurRegion]
   }
-  // Only the input area shrinks; the layer reservation tracks the strip.
+  // Only the input area tracks the strip; everything else is click-through.
   mask: Region {
     width: root.width
-    height: root.panelOpen ? root.height : stripHeight
+    height: root.height
+    // The window reserves room for panels above the strip; without one open,
+    // everything above the strip passes clicks through to the background.
+    Region {
+      y: 0
+      width: root.width
+      height: root.panelOpen && root.activePanel
+          ? Math.max(0, root.activePanel.y)
+          : Math.max(0, root.height - stripHeight)
+      intersection: Intersection.Subtract
+    }
     // Let the background receive clicks between the two card groups.
     Region {
       x: Math.ceil(mainRow.x + mainRow.width)
       width: Math.max(0, Math.floor(auxRow.x) - x)
+      y: Math.max(0, root.height - stripHeight)
       height: stripHeight
       intersection: Intersection.Subtract
     }
@@ -148,7 +159,7 @@ PanelWindow {
   // Window height must contain the bar plus any panel opened above it; the
   // layer reservation still reflects the strip alone, so tiles never move.
   implicitHeight: Math.ceil(Math.max(
-      Theme.sidebarOuterMargin + Theme.sidebarCardCollapsedWidth + 168,
+      Theme.sidebarOuterMargin * 2 + 168,
       wifiPanel.visible ? stripHeight + Theme.sidebarCardGap + wifiPanel.height + 67 : 0,
       audioPanel.visible ? stripHeight + Theme.sidebarCardGap + audioPanel.height + 67 : 0,
       bluetoothPanel.visible ? stripHeight + Theme.sidebarCardGap + bluetoothPanel.height + 67 : 0))
