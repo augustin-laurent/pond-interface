@@ -9,6 +9,7 @@ import Quickshell.Io
 Singleton {
   id: root
   property string expandedSection: ""
+  property string barLayout: "bottom"
   property string wallpaperMode: "dynamic"
   property string wallpaperPath: ""
   property string wallpaperUrl: ""
@@ -51,6 +52,19 @@ Singleton {
         root.wallpaperPath = state.path || "";
         root.wallpaperUrl = state.url || "";
       } catch(e) { console.warn("Appearance wallpaper:", e); }
+    }
+  }
+  FileView {
+    id: layoutFile
+    path: StandardPaths.writableLocation(StandardPaths.ConfigLocation) + "/pond-interface/layout.json"
+    printErrors: false
+    watchChanges: true
+    onFileChanged: reload()
+    onLoaded: {
+      try {
+        const state = JSON.parse(text());
+        root.barLayout = state.barLayout === "sidebar" ? "sidebar" : "bottom";
+      } catch(e) { console.warn("Appearance layout:", e); }
     }
   }
   Process {
@@ -111,6 +125,7 @@ Singleton {
       if (result.error) errorCode = result.error; errorParameters = result.errorParameters || [];
       if (result.theme) Shell.Theme.reload();
       if (result.mode) wallpaperFile.reload();
+      if (result.barLayout) layoutFile.reload();
     } catch (exception) { errorCode = failure; }
   }
   function refresh() {
@@ -137,6 +152,9 @@ Singleton {
   }
   function selectTheme(theme) {
     apply(["theme", theme]);
+  }
+  function selectBarLayout(name) {
+    apply(["layout", name]);
   }
   function selectDynamic() { apply(["wallpaper", "dynamic"]); }
   function pickWallpaper() { if (!picker.running) { errorCode = ""; picker.running = true; } }

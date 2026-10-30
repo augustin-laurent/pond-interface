@@ -9,9 +9,9 @@ PanelWindow {
   id: root
   required property var bar
   required property var above
-
-  screen: bar.screen
-  visible: Battery.State.alert > 0 && bar.collapseProgress > 0.42
+  readonly property bool bottomBar: bar ? bar.barLayout === "bottom" : false
+  screen: bar ? bar.screen : null
+  visible: bar ? Battery.State.alert > 0 && bar.collapseProgress > 0.42 : false
   color: "transparent"
   implicitWidth: card.width + 68
   implicitHeight: card.height + 145
@@ -19,7 +19,10 @@ PanelWindow {
 
   anchors { left: true; top: true }
   margins {
-    left: Math.round(Shell.Theme.sidebarOuterMargin + bar.cardWidth + 20) - card.x
+    left: root.bar ? root.bottomBar
+        ? 20 - card.x
+        : Math.round(Shell.Theme.sidebarOuterMargin + root.bar.cardWidth + 20) - card.x
+        : 0
     top: (above.visible ? 20 + above.implicitHeight : 20) - card.y
   }
 

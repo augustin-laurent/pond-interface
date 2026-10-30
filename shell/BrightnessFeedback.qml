@@ -7,6 +7,8 @@ Item {
   id: root
   required property var screen
   required property real collapseProgress
+  // Set by the bottom bar; margins then anchor above the strip instead.
+  property var barHost: null
   required property real expandedBottomMargin
   property real value: 0
   readonly property bool collapsed: collapseProgress >= 0.56
@@ -71,9 +73,13 @@ Item {
       implicitWidth: Theme.sidebarCardExpandedWidth + (root.collapsed ? 134 : 0)
       implicitHeight: root.collapsed ? 67 + 36 + 40 : 36
       anchors { left: true; bottom: true }
-      margins.left: root.collapsed ? Math.round((screen.width + Theme.sidebarOuterMargin
-          + Theme.sidebarCardCollapsedWidth - implicitWidth) / 2) : Theme.sidebarOuterMargin
-      margins.bottom: root.collapsed ? 0 : Math.round(root.expandedBottomMargin)
+      margins.left: root.barHost
+          ? Math.round((screen.width - implicitWidth) / 2)
+          : root.collapsed ? Math.round((screen.width + Theme.sidebarOuterMargin
+              + Theme.sidebarCardCollapsedWidth - implicitWidth) / 2) : Theme.sidebarOuterMargin
+      margins.bottom: root.barHost
+          ? Math.round(root.barHost.stripHeight + 10)
+          : root.collapsed ? 0 : Math.round(root.expandedBottomMargin)
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.namespace: "pond-brightness"
       WlrLayershell.exclusionMode: ExclusionMode.Ignore

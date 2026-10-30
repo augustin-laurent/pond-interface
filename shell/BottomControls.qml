@@ -7,6 +7,8 @@ import "wifi" as Wifi
 Card {
   id: root
   property real collapseProgress: 0
+  // Set by the bottom bar; keeps the volume popup beside the sidebar when unset.
+  property var barHost: null
   signal collapseClicked
   readonly property real widthProgress: Theme.collapseWidth(collapseProgress)
   readonly property real heightProgress: Theme.collapseHeight(collapseProgress)
@@ -134,15 +136,21 @@ Card {
     active: root.collapsedVolumeVisible
     PanelWindow {
       id: volumeWindow
-      readonly property real cardX: root.besideSidebar ? Theme.sidebarOuterMargin + root.width + 4
-          : Math.round((screen.width + Theme.sidebarOuterMargin
-              + Theme.sidebarCardCollapsedWidth - Theme.sidebarCardExpandedWidth) / 2)
+      readonly property real barStrip: root.barHost ? root.barHost.stripHeight : 0
+      readonly property real cardX: root.barHost
+          ? Math.round(screen.width - Theme.sidebarOuterMargin - root.width / 2
+                       - Theme.sidebarCardExpandedWidth / 2)
+          : root.besideSidebar ? Theme.sidebarOuterMargin + root.width + 4
+              : Math.round((screen.width + Theme.sidebarOuterMargin
+                  + Theme.sidebarCardCollapsedWidth - Theme.sidebarCardExpandedWidth) / 2)
       readonly property real cardBottom: root.besideSidebar ? Math.round(Theme.sidebarOuterMargin + root.height - 46 - 36) : 40
       screen: root.QsWindow.window ? root.QsWindow.window.screen : null
       color: "transparent"
       BackgroundEffect.blurRegion: Theme.daylight ? volumeCard.blurRegion : null
       implicitWidth: cardX + Theme.sidebarCardExpandedWidth + 67
-      implicitHeight: cardBottom + 36 + 67
+      implicitHeight: root.barHost
+          ? Math.round(barStrip + 4 + 36 + 67)
+          : cardBottom + 36 + 67
       anchors { left: true; bottom: true }
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.namespace: "pond-volume"

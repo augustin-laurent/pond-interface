@@ -55,6 +55,30 @@ Settings.Modal {
     id: fields
     x: 30; y: 241; width: root.width - 60; spacing: 8
     Accordion {
+      objectName: "barLayoutSection"
+      width: parent.width; title: qsTrId("pond.bar_layout")
+      summary: Appearance.State.barLayout === "bottom" ? qsTrId("pond.bottom_bar") : qsTrId("pond.left_sidebar")
+      expanded: Appearance.State.expandedSection === "bar-layout"
+      expandedHeight: 141
+      onToggled: Appearance.State.toggleSection("bar-layout")
+      LayoutOption {
+        objectName: "bottomBarLayout"
+        y: 5; width: parent.width
+        label: qsTrId("pond.bottom_bar")
+        description: qsTrId("pond.place_the_bar_along_the_bottom_edge")
+        selected: Appearance.State.barLayout === "bottom"
+        onClicked: Appearance.State.selectBarLayout("bottom")
+      }
+      LayoutOption {
+        objectName: "sideBarLayout"
+        y: 68; width: parent.width
+        label: qsTrId("pond.left_sidebar")
+        description: qsTrId("pond.keep_the_bar_along_the_left_edge")
+        selected: Appearance.State.barLayout === "sidebar"
+        onClicked: Appearance.State.selectBarLayout("sidebar")
+      }
+    }
+    Accordion {
       objectName: "wallpaperSection"
       width: parent.width; title: qsTrId("pond.wallpaper")
       summary: Appearance.State.wallpaperMode === "dynamic" ? qsTrId("pond.dynamic") : qsTrId("pond.custom")

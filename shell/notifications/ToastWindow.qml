@@ -13,6 +13,7 @@ PanelWindow {
   required property var bar
 
   readonly property string outputName: bar && bar.screen ? bar.screen.name : ""
+  readonly property bool bottomBar: bar ? bar.barLayout === "bottom" : false
   readonly property bool outputMatches: Notifications.State.transientOutputName === ""
       || Notifications.State.transientOutputName === outputName
   readonly property bool requested: outputMatches
@@ -21,7 +22,7 @@ PanelWindow {
   property real reveal: requested ? 1 : 0
   property var displayedNotification: ({})
 
-  screen: bar.screen
+  screen: bar ? bar.screen : null
   visible: requested || reveal > 0.001
   color: "transparent"
   implicitWidth: Notifications.Style.interactiveWidth
@@ -32,7 +33,8 @@ PanelWindow {
     top: true
   }
   margins {
-    left: Math.round(Shell.Theme.sidebarOuterMargin + bar.cardWidth
+    left: root.bottomBar ? Notifications.Style.desktopMargin
+        : Math.round(Shell.Theme.sidebarOuterMargin + bar.cardWidth
                      + Notifications.Style.desktopMargin)
     top: Notifications.Style.desktopMargin
   }

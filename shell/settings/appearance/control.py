@@ -138,11 +138,19 @@ def theme(name):
     return {"theme": name}
 
 
+def layout(name):
+    if name not in ("bottom", "sidebar"):
+        raise ValueError("Unknown bar layout")
+    atomic_write(CONFIG / "pond-interface/layout.json", json.dumps({"barLayout": name}) + "\n")
+    return {"barLayout": name}
+
+
 def main():
     try:
         action, *args = sys.argv[1:]
         commands = {"status": status, "brightness": set_brightness, "brightness-step": step_brightness,
-                    "wallpaper": wallpaper, "pick-wallpaper": pick_wallpaper, "theme": theme}
+                    "wallpaper": wallpaper, "pick-wallpaper": pick_wallpaper, "theme": theme,
+                    "layout": layout}
         print(json.dumps(commands[action](*args)))
     except Exception as error:
         print(json.dumps(error_payload(error, 'Could not apply appearance settings')))
