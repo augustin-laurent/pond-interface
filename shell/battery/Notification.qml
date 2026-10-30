@@ -17,13 +17,20 @@ PanelWindow {
   implicitHeight: card.height + 145
   mask: Region { item: card }
 
-  anchors { left: true; top: true }
+  anchors { left: true; top: !root.bottomBar; bottom: root.bottomBar }
   margins {
     left: root.bar ? root.bottomBar
         ? 20 - card.x
         : Math.round(Shell.Theme.sidebarOuterMargin + root.bar.cardWidth + 20) - card.x
         : 0
-    top: (above.visible ? 20 + above.implicitHeight : 20) - card.y
+    // Sidebar layout: chips stack below the toast at the top-left. Bottom
+    // layout: rise from above the bar, stacking on top of the toast so the
+    // two never overlap.
+    top: root.bottomBar ? 0 : (above.visible ? 20 + above.implicitHeight : 20) - card.y
+    bottom: root.bottomBar
+        ? Math.round((bar ? bar.stripHeight : 0) + 10
+                     + (above.visible ? above.implicitHeight + 12 : 0))
+        : 0
   }
 
   WlrLayershell.layer: WlrLayer.Overlay

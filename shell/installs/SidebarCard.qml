@@ -6,13 +6,17 @@ import "../updates" as Updates
 Shell.Card {
   id: root
   property real collapseProgress: 0
+  // Set by the bottom bar: collapse into a single 48x48 status tile instead of
+  // stacking one row per job.
+  property bool horizontal: false
   readonly property real widthProgress: Shell.Theme.collapseWidth(collapseProgress)
   readonly property real heightProgress: Shell.Theme.collapseHeight(collapseProgress)
+  readonly property bool horizontalCompact: horizontal && collapseProgress >= 0.56
   readonly property int count: Installs.State.jobs.count
   implicitWidth: Shell.Theme.lerp(Shell.Theme.sidebarCardExpandedWidth,
       Shell.Theme.sidebarCardCollapsedWidth, widthProgress)
   implicitHeight: count === 0 ? 0 : Shell.Theme.lerp(48 + (count - 1) * 32,
-      count === 1 ? 48 : 16 + count * 28, heightProgress)
+      horizontal ? 48 : count === 1 ? 48 : 16 + count * 28, heightProgress)
   visible: count > 0
   radius: Shell.Theme.lerp(12, Shell.Theme.sidebarCardRadius, widthProgress)
 
@@ -36,6 +40,7 @@ Shell.Card {
           (root.count === 1 ? 8 : 6) + index * 28, root.heightProgress)
       width: root.width
       height: 32
+      visible: !root.horizontalCompact
       Accessible.role: Accessible.ListItem
       readonly property string displayName: jobId !== "system-update" ? name
           : status === "installed" ? qsTrId("pond.update_complete")
@@ -120,6 +125,57 @@ Shell.Card {
           z: -1
           active: dismiss.hovered
         }
+      }
+    }
+  }
+
+  Item {
+    id: compactLayer
+    anchors.fill: parent
+    visible: root.horizontalCompact
+    opacity: Shell.Theme.ramp(root.collapseProgress, 0.56, 1)
+
+    Repeater {
+      model: Installs.State.jobs
+      delegate: Item {
+        required property int index
+        required property string jobId
+        required property string status
+        required property real progress
+        visible: index === 0
+        anchors.centerIn: parent
+        width: 16
+        height: 16
+
+        Installs.Indicator {
+          anchors.fill: parent
+          visible: parent.jobId !== "system-update" || parent.status !== "installing"
+          progress: parent.progress
+          status: parent.status
+        }
+        Updates.Indicator {
+          anchors.fill: parent
+          visible: parent.jobId === "system-update" && parent.status === "installing"
+        }
+      }
+    }
+
+    Rectangle {
+      visible: root.count > 1
+      x: parent.width - width - 6
+      y: 6
+      width: 14
+      height: 14
+      radius: 7
+      color: "#d9d9d9"
+
+      Text {
+        anchors.centerIn: parent
+        text: root.count
+        color: "#1e1e1e"
+        font.family: Shell.Theme.fontFamily
+        font.pixelSize: 9
+        font.weight: Font.Medium
       }
     }
   }

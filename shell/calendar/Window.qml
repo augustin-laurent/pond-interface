@@ -47,7 +47,7 @@ PanelWindow {
                             width - Shell.Theme.sidebarOuterMargin - calendar.width))
         : root.panelLeft
     y: root.bottomBar
-        ? height - root.bar.stripHeight - 10 - calendar.height
+        ? root.height - root.bar.stripHeight - 10 - calendar.height
         : root.panelTop
     Keys.onPressed: event => {
       if (event.key === Qt.Key_Escape && root.bar) root.bar.popup = "";

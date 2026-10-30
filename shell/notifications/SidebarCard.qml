@@ -14,6 +14,9 @@ Item {
   readonly property real inlineAmount: transientProgress * (1 - Shell.Theme.collapseHeight(collapseProgress))
   readonly property real previewOpacity: inlineAmount >= 0.54 ? 1 : 0
   readonly property var notification: Notifications.State.currentTransient
+  readonly property real widthProgress: Shell.Theme.collapseWidth(collapseProgress)
+  implicitWidth: Shell.Theme.lerp(Shell.Theme.sidebarCardExpandedWidth,
+      Shell.Theme.sidebarCardCollapsedWidth, widthProgress)
   implicitHeight: 48 + (47 + preview.height - 48) * inlineAmount
   Behavior on transientProgress { Shell.Motion {} }
 

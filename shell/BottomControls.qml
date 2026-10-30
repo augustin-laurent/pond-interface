@@ -9,11 +9,15 @@ Card {
   property real collapseProgress: 0
   // Set by the bottom bar; keeps the volume popup beside the sidebar when unset.
   property var barHost: null
+  // Set by the bottom bar: keep the four controls in a row when collapsed
+  // instead of folding them into a tall ladder.
+  property bool horizontal: false
   signal collapseClicked
   readonly property real widthProgress: Theme.collapseWidth(collapseProgress)
   readonly property real heightProgress: Theme.collapseHeight(collapseProgress)
-  width: Theme.lerp(156, 48, widthProgress)
-  height: Theme.lerp(openExpandedHeight, 168, heightProgress)
+  width: horizontal ? 156 : Theme.lerp(156, 48, widthProgress)
+  height: horizontal ? (collapsed ? 48 : openExpandedHeight)
+      : Theme.lerp(openExpandedHeight, 168, heightProgress)
   contentClipped: false
   radius: Theme.daylight ? Theme.lerp(12, 16, heightProgress) : Theme.sidebarCardRadius
 
@@ -292,12 +296,17 @@ Card {
       readonly property bool vertical: index > 3
       readonly property int slot: vertical ? index - 3 : index
       readonly property var modelData: root.icons[slot]
-      opacity: slot === 0 || (vertical ? root.collapseProgress >= 0.56
-          : root.collapseProgress < 0.56) ? 1 : 0
+      opacity: root.horizontal ? (vertical ? 0 : 1)
+          : (slot === 0 || (vertical ? root.collapseProgress >= 0.56
+              : root.collapseProgress < 0.56) ? 1 : 0)
       visible: opacity > 0.001
-      x: vertical ? 4 : Theme.lerp([4, 42, 78, 114][slot], 4, root.widthProgress)
-      y: vertical ? 4 + slot * 40 : Theme.lerp(root.expandedControlsY, 4, root.widthProgress)
-      width: vertical ? 40 : Theme.lerp(slot === 0 || slot === 3 ? 38 : 36, 40, root.widthProgress)
+      x: vertical ? 4 : root.horizontal ? [4, 42, 78, 114][slot]
+          : Theme.lerp([4, 42, 78, 114][slot], 4, root.widthProgress)
+      y: vertical ? 4 + slot * 40 : root.horizontal
+          ? (root.collapsed ? 4 : root.expandedControlsY)
+          : Theme.lerp(root.expandedControlsY, 4, root.widthProgress)
+      width: vertical ? 40 : root.horizontal ? [38, 36, 36, 38][slot]
+          : Theme.lerp(slot === 0 || slot === 3 ? 38 : 36, 40, root.widthProgress)
       height: 40
       enabled: opacity > 0.5
       onHoveredChanged: {
@@ -324,9 +333,11 @@ Card {
         anchors.fill: parent
         z: -1
         topLeftRadius: action.slot === 0 ? 12 : 4
-        topRightRadius: action.slot === 0 ? Theme.lerp(4, 12, root.collapseProgress)
+        topRightRadius: root.horizontal ? (action.slot === 3 ? 12 : 4)
+            : action.slot === 0 ? Theme.lerp(4, 12, root.collapseProgress)
             : action.slot === 3 ? Theme.lerp(12, 4, root.collapseProgress) : 4
-        bottomLeftRadius: action.slot === 0 ? Theme.lerp(12, 4, root.collapseProgress)
+        bottomLeftRadius: root.horizontal ? (action.slot === 0 ? 12 : 4)
+            : action.slot === 0 ? Theme.lerp(12, 4, root.collapseProgress)
             : action.slot === 3 ? Theme.lerp(4, 12, root.collapseProgress) : 4
         bottomRightRadius: action.slot === 3 ? 12 : 4
         color: Theme.daylight ? (action.selected || action.hovered ? Theme.sidebarHoverFill : Theme.sidebarClearFill)
@@ -345,7 +356,8 @@ Card {
           source: "assets/navigation/collapse.svg"
           sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
           fillMode: Image.PreserveAspectFit
-          rotation: index === 0 ? 90 : -90
+          rotation: root.horizontal ? (index === 0 ? 0 : 180)
+              : (index === 0 ? 90 : -90)
           readonly property real flipProgress: root.collapseProgress >= 0.5 ? 1 : 0
           opacity: action.glyphOpacity * (index === 0 ? 1 - flipProgress : flipProgress)
           smooth: true

@@ -110,7 +110,11 @@ PanelWindow {
 
   color: "transparent"
   BackgroundEffect.blurRegion: Theme.daylight ? cardBlur : null
+  // Card positions are window-relative: refresh the blur region whenever the
+  // surface resizes for a panel, otherwise a stale card-shaped patch is left
+  // behind at the old coordinates.
   onStripHeightChanged: cardBlur.changed()
+  onHeightChanged: cardBlur.changed()
   Region {
     id: cardBlur
     regions: [timeCard.blurRegion, workspacesCard.blurRegion, mediaCard.blurRegion,
@@ -156,10 +160,11 @@ PanelWindow {
   exclusiveZone: stripHeight
   Behavior on collapseProgress { Motion {} }
 
-  // Window height must contain the bar plus any panel opened above it; the
-  // layer reservation still reflects the strip alone, so tiles never move.
+  // The window is exactly the strip unless a panel opens above it. Keeping the
+  // surface this small means the collapsed bar is a slim bottom dock rather
+  // than a full-height transparent layer.
   implicitHeight: Math.ceil(Math.max(
-      Theme.sidebarOuterMargin * 2 + 168,
+      stripHeight,
       wifiPanel.visible ? stripHeight + Theme.sidebarCardGap + wifiPanel.height + 67 : 0,
       audioPanel.visible ? stripHeight + Theme.sidebarCardGap + audioPanel.height + 67 : 0,
       bluetoothPanel.visible ? stripHeight + Theme.sidebarCardGap + bluetoothPanel.height + 67 : 0))
@@ -174,7 +179,7 @@ PanelWindow {
 
     Calendar.Clock {
       id: timeCard
-      width: root.cardWidth
+      horizontal: true
       y: parent.height - height
       collapseProgress: root.collapseProgress
       onClicked: root.togglePopup("calendar")
@@ -183,6 +188,7 @@ PanelWindow {
 
     Minimap.Map {
       id: workspacesCard
+      horizontal: true
       screen: root.screen
       collapseProgress: root.collapseProgress
       // The map grows in rows, which stack vertically inside the strip; cap it
@@ -196,13 +202,13 @@ PanelWindow {
 
     Media.Player {
       id: mediaCard
+      horizontal: true
       collapseProgress: root.collapseProgress
       y: parent.height - height
     }
 
     Notifications.SidebarCard {
       id: notificationCard
-      width: root.cardWidth
       y: parent.height - height
       collapseProgress: root.collapseProgress
       onPanelRequested: { root.dismissPanels(); Notifications.State.togglePanel(root.screen.name); }
@@ -210,7 +216,7 @@ PanelWindow {
 
     Installs.SidebarCard {
       id: installsCard
-      width: root.cardWidth
+      horizontal: true
       y: parent.height - height
       collapseProgress: root.collapseProgress
     }
@@ -271,7 +277,6 @@ PanelWindow {
     }
     spacing: Theme.sidebarCardGap
     Screenshot.Preview {
-      width: root.cardWidth
       y: parent.height - height
       outputName: root.screen.name
       collapsed: root.collapseProgress > 0.5
@@ -285,6 +290,7 @@ PanelWindow {
     }
     BottomControls {
       id: controls
+      horizontal: true
       y: parent.height - height
       collapseProgress: root.collapseProgress
       barHost: root

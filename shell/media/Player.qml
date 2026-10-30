@@ -7,6 +7,11 @@ Shell.Card {
   id: root
 
   property real collapseProgress: 0
+  // Set by the bottom bar: the collapsed card becomes a wide now-playing pill
+  // instead of a square tile with vertically stacked controls.
+  property bool horizontal: false
+  readonly property bool horizontalCollapsed:
+      horizontal && collapseProgress >= 0.56
   readonly property real layoutProgress:
       Shell.Theme.collapseWidth(collapseProgress)
   readonly property bool hasPlayer: Media.State.hasPlayer
@@ -26,8 +31,10 @@ Shell.Card {
                             ? Media.State.identity : qsTrId("pond.unknown_track"))
 
   width: Shell.Theme.lerp(Shell.Theme.sidebarCardExpandedWidth,
-      Shell.Theme.sidebarCardCollapsedWidth, layoutProgress)
-  height: Shell.Theme.lerp(expandedTargetHeight, collapsedTargetHeight,
+      horizontal ? Shell.Theme.sidebarCardExpandedWidth
+                 : Shell.Theme.sidebarCardCollapsedWidth, layoutProgress)
+  height: Shell.Theme.lerp(expandedTargetHeight,
+      horizontal ? (hasPlayer ? 48 : 0) : collapsedTargetHeight,
       Shell.Theme.collapseHeight(collapseProgress))
   visible: height > 0
   classicColor: revealed ? Shell.Theme.mediaHoverBackground : Shell.Theme.sidebarV3Background
@@ -78,6 +85,8 @@ Shell.Card {
       width: Math.max(0, root.width - x - Shell.Theme.lerp(12, 8, root.layoutProgress))
       height: 38
       clip: true
+      opacity: root.horizontalCollapsed && root.revealed ? 0 : 1
+      Behavior on opacity { Shell.HoverAnimation {} }
       Column {
         width: 84
         Media.MarqueeText {
@@ -101,14 +110,25 @@ Shell.Card {
 
     // Growing/shrinking this mask reveals the same controls in either layout.
     Item {
-      x: Shell.Theme.lerp(40, 14, root.layoutProgress)
-      y: Shell.Theme.lerp(56, pointer.pressed ? 55 : 48, Shell.Theme.collapseHeight(root.collapseProgress))
-      width: Shell.Theme.lerp(76, 20, root.layoutProgress)
-      height: Math.max(0, root.height - Shell.Theme.lerp(64, 48,
-          Shell.Theme.collapseHeight(root.collapseProgress)))
-      clip: true
+      x: root.horizontalCollapsed ? artwork.x + artwork.width + 8
+          : Shell.Theme.lerp(40, 14, root.layoutProgress)
+      y: root.horizontalCollapsed ? 12
+          : Shell.Theme.lerp(56, pointer.pressed ? 55 : 48, Shell.Theme.collapseHeight(root.collapseProgress))
+      width: root.horizontalCollapsed ? 76
+          : Shell.Theme.lerp(76, 20, root.layoutProgress)
+      height: root.horizontalCollapsed ? 24
+          : Math.max(0, root.height - Shell.Theme.lerp(64, 48,
+              Shell.Theme.collapseHeight(root.collapseProgress)))
+      clip: !root.horizontalCollapsed
       enabled: root.revealed
-      Controls { anchors.fill: parent; layoutProgress: root.layoutProgress; verticalProgress: Shell.Theme.collapseHeight(root.collapseProgress) }
+      opacity: root.horizontalCollapsed && !root.revealed ? 0 : 1
+      Behavior on opacity { Shell.HoverAnimation {} }
+      Controls {
+        anchors.fill: parent
+        layoutProgress: root.horizontalCollapsed ? 0 : root.layoutProgress
+        verticalProgress: root.horizontalCollapsed ? 0
+            : Shell.Theme.collapseHeight(root.collapseProgress)
+      }
     }
   }
   component Controls: Item {
