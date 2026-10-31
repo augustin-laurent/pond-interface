@@ -17,6 +17,204 @@ Singleton {
   property var _windows: ({})
   property var _appInfoCache: ({})
   property ListModel workspaceRows: ListModel {}
+  property var workspaceModes: ({})
+  property bool workspaceDragActive: false
+  readonly property bool workspaceModeBusy: !_modesReady || _modeTransition !== null
+  property bool _modesReady: false
+  property bool _haveWorkspaces: false
+  property var _modeTransition: null
+  property var _pendingWindowModes: ({})
+  property var _modeQueryDone: null
+  property var _suppressLauncherWorkspace: null
+
+  function workspaceMode(id) { return workspaceModes[id] === "floating" ? "floating" : "scroll"; }
+
+  function _modeAction(id, floating) {
+    return floating ? { MoveWindowToFloating: { id: id } } : { MoveWindowToTiling: { id: id } };
+  }
+
+  function _reportWorkspaceModeError(messageId) {
+    console.warn("Pond workspace mode:", messageId);
+    Quickshell.execDetached(["notify-send", "--app-name=Pond", "--icon=dialog-error",
+        qsTrId("pond.workspace_layout"), qsTrId(messageId)]);
+  }
+
+  // The socket's filesystem identity distinguishes compositor sessions even if
+  // a later compositor reuses the same socket path/PID.
+  Process {
+    id: modeSession
+    command: ["python3", Quickshell.shellDir + "/workspace-mode-session.py",
+        Quickshell.env("NIRI_SOCKET"), Quickshell.env("XDG_RUNTIME_DIR")]
+    running: true
+    stdout: StdioCollector {
+      onStreamFinished: {
+        try {
+          const state = JSON.parse(text);
+          modeFile.path = state.path;
+          root.workspaceModes = state.modes;
+          root._modesReady = true;
+          if (state.error) root._reportWorkspaceModeError(state.error);
+          root._pruneWorkspaceModes();
+          root._recompute();
+          modeReconcile.restart();
+        } catch (error) { console.warn("Loading workspace modes:", error); }
+      }
+    }
+    onExited: {
+      if (!root._modesReady) {
+        root._modesReady = true;
+        root._reportWorkspaceModeError("pond.workspace_layout_restore_failed");
+        modeReconcile.restart();
+      }
+    }
+  }
+
+  FileView {
+    id: modeFile
+    atomicWrites: true
+    blockWrites: true
+    printErrors: false
+    onSaveFailed: root._reportWorkspaceModeError("pond.workspace_layout_save_failed")
+  }
+
+  function _saveWorkspaceModes() {
+    if (modeFile.path) modeFile.setText(JSON.stringify({ modes: workspaceModes }));
+  }
+
+  function _pruneWorkspaceModes() {
+    if (!_modesReady || !_haveWorkspaces) return;
+    const next = {};
+    for (const workspace of workspaces)
+      if (workspaceModes[workspace.id] === "floating") next[workspace.id] = "floating";
+    if (JSON.stringify(next) !== JSON.stringify(workspaceModes)) {
+      workspaceModes = next;
+      _saveWorkspaceModes();
+    }
+  }
+
+  function cycleWorkspaceMode(workspaceId) {
+    const workspace = workspaces.find(w => w.id === workspaceId);
+    if (!workspace || !workspace.isActive || workspaceModeBusy || workspaceDragActive || dragOrigin || _moveDone)
+      return false;
+    const floating = workspaceMode(workspaceId) !== "floating";
+    const snapshot = Object.values(_windows).filter(w => w.workspaceId === workspaceId)
+        .map(w => ({ id: w.id, workspaceId: w.workspaceId, isFloating: w.isFloating }));
+    _modeTransition = { workspaceId: workspaceId, floating: floating, snapshot: snapshot };
+    const actions = [];
+    if (!workspace.isFocused) {
+      _suppressLauncherWorkspace = workspaceId;
+      launcherSuppression.restart();
+      actions.push({ FocusWorkspace: { reference: { Id: workspaceId } } });
+    }
+    for (const window of snapshot)
+      if (window.isFloating !== floating) actions.push(_modeAction(window.id, floating));
+    return _move(actions, success => {
+      if (!success) { _recoverWorkspaceMode(); return; }
+      _queryModeWindows(windows => {
+        const transition = _modeTransition;
+        if (!windows || !workspaces.some(w => w.id === transition.workspaceId)
+            || transition.snapshot.some(before => windows.some(w => w.id === before.id
+                && w.workspaceId === transition.workspaceId && w.isFloating !== transition.floating))) {
+          _recoverWorkspaceMode();
+          return;
+        }
+        const next = Object.assign({}, workspaceModes);
+        if (transition.floating) next[transition.workspaceId] = "floating";
+        else delete next[transition.workspaceId];
+        workspaceModes = next;
+        _modeTransition = null;
+        _saveWorkspaceModes();
+        _recompute();
+        modeReconcile.restart();
+      });
+    });
+  }
+
+  function _recoverWorkspaceMode() {
+    _queryModeWindows(windows => {
+      const transition = _modeTransition;
+      const current = windows || Object.values(_windows);
+      const actions = transition.snapshot.filter(before => current.some(w => w.id === before.id
+          && w.workspaceId === transition.workspaceId && w.isFloating !== before.isFloating))
+          .map(before => _modeAction(before.id, before.isFloating));
+      // Try every surviving window, even if one closes during recovery.
+      _move(actions, success => {
+        _queryModeWindows(restored => {
+          _modeTransition = null;
+          _reportWorkspaceModeError("pond.workspace_layout_change_failed");
+          _recompute();
+          modeReconcile.restart();
+        });
+      }, true);
+    });
+  }
+
+  function _queryModeWindows(done) {
+    _modeQueryDone = done;
+    modeQueryTimeout.restart();
+    modeQuery.connected = true;
+  }
+
+  function _finishModeQuery(windows) {
+    const done = _modeQueryDone;
+    _modeQueryDone = null;
+    modeQueryTimeout.stop();
+    modeQuery.connected = false;
+    if (windows) {
+      // The action socket can finish before the event-stream process delivers
+      // its notifications. Use the confirmed snapshot for the next click too.
+      const next = {};
+      for (const window of windows) {
+        const old = _windows[window.id];
+        if (!old || old.workspaceId !== window.workspaceId)
+          _pendingWindowModes[window.id] = window.workspaceId;
+        next[window.id] = window;
+      }
+      _windows = next;
+    }
+    if (done) done(windows);
+  }
+
+  Socket {
+    id: modeQuery
+    path: Quickshell.env("NIRI_SOCKET")
+    onConnectedChanged: {
+      if (connected) { write(JSON.stringify("Windows") + "\n"); flush(); }
+      else if (root._modeQueryDone) root._finishModeQuery(null);
+    }
+    onError: root._finishModeQuery(null)
+    parser: SplitParser {
+      onRead: line => {
+        try {
+          const windows = JSON.parse(line).Ok.Windows;
+          root._finishModeQuery(Array.isArray(windows) ? windows.map(w => root._mapWindow(w)) : null);
+        } catch (error) { root._finishModeQuery(null); }
+      }
+    }
+  }
+  Timer { id: modeQueryTimeout; interval: 1500; onTriggered: root._finishModeQuery(null) }
+  Timer { id: launcherSuppression; interval: 1500; onTriggered: root._suppressLauncherWorkspace = null }
+  Timer { id: modeReconcile; interval: 0; onTriggered: root._applyPendingWindowModes() }
+  onWorkspaceDragActiveChanged: if (!workspaceDragActive) modeReconcile.restart()
+
+  function _applyPendingWindowModes() {
+    if (workspaceModeBusy || workspaceDragActive || dragOrigin || _moveDone) return;
+    const actions = [];
+    for (const id of Object.keys(_pendingWindowModes)) {
+      const window = _windows[id];
+      if (!window || window.workspaceId !== _pendingWindowModes[id]) {
+        delete _pendingWindowModes[id];
+        continue;
+      }
+      if (!workspaces.some(w => w.id === window.workspaceId)) continue;
+      delete _pendingWindowModes[id];
+      const floating = workspaceMode(window.workspaceId) === "floating";
+      if (window.isFloating !== floating) actions.push(_modeAction(window.id, floating));
+    }
+    if (actions.length) _move(actions, success => {
+      if (!success) _reportWorkspaceModeError("pond.workspace_layout_window_failed");
+    }, true);
+  }
   readonly property string focusedOutputName: {
     for (const workspace of workspaces) {
       if (workspace.isFocused)
@@ -34,7 +232,13 @@ Singleton {
     Quickshell.execDetached(["niri", "msg", "action", "focus-workspace", String(index)]);
   }
 
+  function focusWorkspaceById(id) {
+    if (workspaceModeBusy || !workspaces.some(w => w.id === id)) return false;
+    return _move([{ FocusWorkspace: { reference: { Id: id } } }], success => {});
+  }
+
   function openLauncher(workspaceId) {
+    if (workspaceModeBusy) return;
     const workspace = workspaces.find(workspace => workspace.id === workspaceId);
     if (!workspace) return;
     _move(workspace.isFocused ? [] : [{ FocusWorkspace: { reference: { Id: workspaceId } } }], success => {
@@ -43,11 +247,12 @@ Singleton {
   }
 
   function moveWindow(id, workspaceId, slot, done) {
+    if (workspaceModeBusy) return false;
     const actions = _windowMoveActions(id, workspaceId, slot);
     return actions !== null && _move(actions, done);
   }
 
-  function _windowMoveActions(id, workspaceId, slot) {
+  function _windowMoveActions(id, workspaceId, slot, floatingOverride) {
     const window = _windows[id];
     if (!window || !workspaces.some(w => w.id === workspaceId))
       return null;
@@ -55,6 +260,12 @@ Singleton {
     if (window.workspaceId !== workspaceId)
       actions.push({ MoveWindowToWorkspace: { window_id: id,
         reference: { Id: workspaceId }, focus: false } });
+    const floating = floatingOverride === undefined ? workspaceMode(workspaceId) === "floating" : floatingOverride;
+    if (floating) {
+      if (!window.isFloating) actions.push(_modeAction(id, true));
+      actions.push({ FocusWindow: { id: id } });
+      return actions;
+    }
     if (window.isFloating)
       actions.push({ MoveWindowToTiling: { id: id } });
     else if (window.workspaceId === workspaceId && Object.values(_windows).filter(w =>
@@ -68,9 +279,10 @@ Singleton {
   function windowExists(id) { return _windows[id] !== undefined; }
 
   function showWindowOverview(id, done) {
+    if (workspaceModeBusy) return false;
     const window = _windows[id];
     const workspace = workspaces.find(w => w.id === window?.workspaceId);
-    if (!workspace || dragOrigin) return false;
+    if (!workspace || dragOrigin || _moveDone) return false;
     dragOrigin = Object.assign({}, window, { workspaceName: workspace.name,
       overviewOpen: overviewOpen, stackSize: Object.values(_windows).filter(w =>
         w.workspaceId === window.workspaceId && !w.isFloating
@@ -89,12 +301,10 @@ Singleton {
     if (!origin) return false;
     const actions = restore && windowExists(origin.id)
         ? _windowMoveActions(origin.id, origin.workspaceId,
-            Math.max(0, _layoutPos(origin)[0] - 1)) : [];
+            Math.max(0, _layoutPos(origin)[0] - 1), origin.isFloating) : [];
     if (!actions) return false;
     if (restore && windowExists(origin.id)) {
-      if (origin.isFloating)
-        actions.push({ MoveWindowToFloating: { id: origin.id } });
-      else if (origin.stackSize > 1) {
+      if (!origin.isFloating && origin.stackSize > 1) {
         actions.push({ ConsumeOrExpelWindowRight: { id: origin.id } });
         for (let row = origin.stackSize; row > _layoutPos(origin)[1]; row--)
           actions.push({ MoveWindowUp: {} });
@@ -104,6 +314,9 @@ Singleton {
       actions.push({ UnsetWorkspaceName: { reference: { Id: origin.workspaceId } } });
     actions.push(origin.overviewOpen ? { OpenOverview: {} } : { CloseOverview: {} });
     return _move(actions, success => {
+      // Preview movements are not independent arrivals; cancellation must also
+      // preserve a manually floating/tiled source window's original exception.
+      delete _pendingWindowModes[origin.id];
       dragOrigin = null;
       _recompute();
       done(success);
@@ -111,6 +324,7 @@ Singleton {
   }
 
   function moveWorkspace(id, targetId, done) {
+    if (workspaceModeBusy) return false;
     const target = workspaces.find(w => w.id === targetId);
     if (!target || !workspaces.some(w => w.id === id && w.output === target.output))
       return false;
@@ -119,12 +333,16 @@ Singleton {
 
   property var _moveActions: []
   property var _moveDone: null
+  property bool _moveContinueOnError: false
+  property bool _moveHadError: false
 
-  function _move(actions, done) {
+  function _move(actions, done, continueOnError) {
     if (_moveDone)
       return false;
     _moveActions = actions;
     _moveDone = done;
+    _moveContinueOnError = !!continueOnError;
+    _moveHadError = false;
     moveTimeout.restart();
     moveSocket.connected = true;
     return true;
@@ -132,9 +350,10 @@ Singleton {
 
   function _nextMoveAction() {
     if (_moveActions.length === 0) {
-      _finishMove(true);
+      _finishMove(!_moveHadError);
       return;
     }
+    moveTimeout.restart();
     moveSocket.write(JSON.stringify({ Action: _moveActions.shift() }) + "\n");
     moveSocket.flush();
   }
@@ -147,6 +366,7 @@ Singleton {
     moveSocket.connected = false;
     if (done)
       done(success);
+    modeReconcile.restart();
   }
 
   Socket {
@@ -159,9 +379,14 @@ Singleton {
     onError: root._finishMove(false)
     parser: SplitParser {
       onRead: line => {
-        const reply = JSON.parse(line);
-        if (reply.Err) root._finishMove(false);
-        else root._nextMoveAction();
+        try {
+          const reply = JSON.parse(line);
+          if (reply.Err && !root._moveContinueOnError) root._finishMove(false);
+          else {
+            if (reply.Err) root._moveHadError = true;
+            root._nextMoveAction();
+          }
+        } catch (error) { root._finishMove(false); }
       }
     }
   }
@@ -203,6 +428,9 @@ Singleton {
         }
       }
     }
+    stderr: StdioCollector {
+      onStreamFinished: if (text.trim()) console.warn("Pond Niri event stream:", text.trim())
+    }
     onExited: restartTimer.start()
   }
 
@@ -237,6 +465,9 @@ Singleton {
         return outputOrder !== 0 ? outputOrder : a.idx - b.idx;
       });
       workspaces = list;
+      _haveWorkspaces = true;
+      _pruneWorkspaceModes();
+      modeReconcile.restart();
     } else if (ev.WorkspaceActivated) {
       const a = ev.WorkspaceActivated;
       const target = workspaces.find(w => w.id === a.id);
@@ -244,7 +475,13 @@ Singleton {
         isActive: target && w.output === target.output ? w.id === a.id : w.isActive,
         isFocused: a.focused ? w.id === a.id : w.isFocused
       }));
+      const suppressLauncher = a.id === _suppressLauncherWorkspace;
+      if (suppressLauncher && a.focused) {
+        _suppressLauncherWorkspace = null;
+        launcherSuppression.stop();
+      }
       if (a.focused && target && !target.isFocused && !dragOrigin && !overviewOpen
+          && !suppressLauncher && !_modeTransition
           && !Object.values(_windows).some(w => w.workspaceId === a.id)) {
         _workspaceLauncherOpen = true;
         Quickshell.execDetached(["vicinae", "open"]);
@@ -270,6 +507,10 @@ Singleton {
         for (const id in wins) wins[id] = Object.assign({}, wins[id], { isFocused: false });
       wins[w.id] = w;
       _windows = wins;
+      if (!old || old.workspaceId !== w.workspaceId) {
+        _pendingWindowModes[w.id] = w.workspaceId;
+        modeReconcile.restart();
+      }
     } else if (ev.WindowClosed) {
       const wins = Object.assign({}, _windows);
       delete wins[ev.WindowClosed.id];
@@ -283,12 +524,19 @@ Singleton {
       _windows = wins;
     } else if (ev.WindowLayoutsChanged) {
       const wins = Object.assign({}, _windows);
+      let orderChanged = false;
       for (const ch of ev.WindowLayoutsChanged.changes) {
         const id = Array.isArray(ch) ? ch[0] : ch.id;
         const layout = Array.isArray(ch) ? ch[1] : ch.layout;
-        if (wins[id]) wins[id].layout = layout;
+        if (!wins[id]) continue;
+        const before = _layoutPos(wins[id]);
+        const updated = Object.assign({}, wins[id], {layout: layout});
+        const after = _layoutPos(updated);
+        if (before[0] !== after[0] || before[1] !== after[1]) orderChanged = true;
+        wins[id] = updated;
       }
       _windows = wins;
+      if (!orderChanged) return;
     } else {
       return;
     }
@@ -494,6 +742,7 @@ Singleton {
         workspaceIndex: ws.idx,
         outputName: outputName,
         isActive: !!ws.isActive,
+        layoutMode: workspaceMode(ws.id),
         isCreationRow: creationRow,
         outputHasWindows: byOutput[outputName].some(workspace => workspace.hasWindows),
         activeWindowId: ws.activeWindowId ?? -1,

@@ -4,6 +4,10 @@ import ".." as Shell
 
 Item {
   id: root
+  property bool livePreview: true
+  property int orientation: Qt.Vertical
+  property bool freeWorkspaceDrag: false
+  property var backend: Shell.NiriMsg
   property var source: null
   property Item destination: null
   property bool held: false
@@ -13,22 +17,25 @@ Item {
   property bool movingPreview: false
   property bool previewed: false
   property var applied: null
-  onDestinationChanged: if (windowDrag && held) preview.restart()
+  onDestinationChanged: if (livePreview && windowDrag && held) preview.restart()
   Connections {
     target: root.windowDrag ? root.destination : null
-    function onSlotChanged() { if (root.held) preview.restart(); }
+    function onSlotChanged() { if (root.livePreview && root.held) preview.restart(); }
+    function onWorkspaceIdChanged() { if (root.livePreview && root.held) preview.restart(); }
   }
   readonly property bool active: source !== null
+  onActiveChanged: root.backend.workspaceDragActive = active
+  Component.onDestruction: if (active) root.backend.workspaceDragActive = false
   readonly property bool windowDrag: source?.kind === "window"
   property point origin
   property point press
   property point pointer
   property point grabOffset
   readonly property bool sourcePresent: !source || (windowDrag
-      ? Shell.NiriMsg.windowExists(source.windowData.winId)
-      : Shell.NiriMsg.workspaces.some(w => w.id === source.workspaceId))
+      ? root.backend.windowExists(source.windowData.winId)
+      : root.backend.workspaces.some(w => w.id === source.workspaceId))
   onSourcePresentChanged: if (!sourcePresent) cancel()
-  readonly property real rowOffset: !source || windowDrag ? 0
+  readonly property real rowOffset: !source || windowDrag || freeWorkspaceDrag ? 0
       : held ? Math.max((1 - source.number) * Shell.Theme.workspaceRowPitch,
           Math.min((source.count - source.number) * Shell.Theme.workspaceRowPitch, pointer.y - press.y))
       : ((destination?.number ?? source.number) - source.number) * Shell.Theme.workspaceRowPitch
@@ -45,7 +52,7 @@ Item {
   Drag.proposedAction: Qt.MoveAction
 
   function begin(data, item, pressPoint, currentPoint) {
-    if (active || !item.contains(item.mapFromItem(null, pressPoint.x, pressPoint.y)))
+    if (active || backend.workspaceModeBusy || !item.contains(item.mapFromItem(null, pressPoint.x, pressPoint.y)))
       return;
     source = data;
     origin = item.mapToItem(parent, 0, 0);
@@ -54,9 +61,9 @@ Item {
     held = true;
     move(currentPoint);
     Drag.active = true;
-    if (windowDrag) {
+    if (windowDrag && livePreview) {
       applied = { workspaceId: data.workspaceId, slot: data.slot };
-      preparingOverview = Shell.NiriMsg.showWindowOverview(data.windowData.winId, success => {
+      preparingOverview = root.backend.showWindowOverview(data.windowData.winId, success => {
         preparingOverview = false;
         if (!success) cancel();
         else if (held) preview.restart();
@@ -70,8 +77,9 @@ Item {
     if (!held)
       return;
     pointer = parent.mapFromItem(null, scenePoint.x, scenePoint.y);
-    x = windowDrag ? pointer.x - grabOffset.x : origin.x;
-    y = windowDrag ? pointer.y - grabOffset.y : origin.y + rowOffset;
+    x = windowDrag || freeWorkspaceDrag || orientation === Qt.Horizontal ? pointer.x - grabOffset.x : origin.x;
+    y = windowDrag || freeWorkspaceDrag ? pointer.y - grabOffset.y
+        : orientation === Qt.Horizontal ? origin.y : origin.y + rowOffset;
   }
 
   function release() {
@@ -98,20 +106,20 @@ Item {
   }
 
   function clear() {
-    if (windowDrag && Shell.NiriMsg.finishWindowDrag(!destination && previewed, finish))
+    if (livePreview && windowDrag && root.backend.finishWindowDrag(!destination && previewed, finish))
       return;
     finish();
   }
 
   function updatePreview() {
-    if (preparingOverview || movingPreview) return;
+    if (!livePreview || preparingOverview || movingPreview) return;
     const target = destination
         ? { workspaceId: destination.workspaceId, slot: destination.slot } : null;
     if (!target || (applied?.workspaceId === target.workspaceId && applied.slot === target.slot)) {
       if (!held) clear();
       return;
     }
-    movingPreview = Shell.NiriMsg.moveWindow(source.windowData.winId,
+    movingPreview = root.backend.moveWindow(source.windowData.winId,
         target.workspaceId, target.slot, success => {
           movingPreview = false;
           if (success) applied = target;
@@ -121,6 +129,18 @@ Item {
         });
     if (movingPreview) previewed = true;
     else { destination = null; held = false; clear(); }
+  }
+
+  function commitDrop() {
+    if (!destination || !sourcePresent
+        || !backend.workspaces.some(w => w.id === destination.workspaceId)) {
+      clear();
+      return;
+    }
+    committing = true;
+    const started = backend.moveWindow(source.windowData.winId,
+        destination.workspaceId, destination.slot, success => finish());
+    if (!started) finish();
   }
 
   function finish() {
@@ -146,14 +166,16 @@ Item {
     onTriggered: {
       if (root.preparingOverview || root.movingPreview) return;
       if (root.windowDrag) {
-        root.committing = true;
-        root.updatePreview();
+        if (root.livePreview) {
+          root.committing = true;
+          root.updatePreview();
+        } else root.commitDrop();
         return;
       }
       if (!root.destination) { root.clear(); return; }
       root.committing = true;
       const done = success => root.clear();
-      const started = Shell.NiriMsg.moveWorkspace(root.source.workspaceId,
+      const started = root.backend.moveWorkspace(root.source.workspaceId,
           root.destination.workspaceId, done);
       if (!started) root.clear();
     }
@@ -161,6 +183,18 @@ Item {
 
   Behavior on x { enabled: !root.held; Shell.HoverAnimation { duration: Shell.Theme.workspaceDragSnapDuration } }
   Behavior on y { enabled: !root.held; Shell.HoverAnimation { duration: Shell.Theme.workspaceDragSnapDuration } }
+
+  Rectangle {
+    anchors.fill: parent
+    visible: root.active && !root.windowDrag && root.orientation === Qt.Horizontal
+    radius: 12
+    color: Shell.Theme.workspaceDragBackground
+    Text {
+      anchors.centerIn: parent
+      text: root.source?.number ?? ""
+      color: "white"
+    }
+  }
 
   Minimap.WindowIcon {
     anchors.fill: parent

@@ -8,15 +8,16 @@ import "../.." as Shell
 Settings.Modal {
   id: root
   objectName: "lockPanel"
-  title: "Lock & sleep"; closeLabel: "Back to System"; bodyTop: 92
+  title: qsTrId("settings.lock_sleep"); closeLabel: qsTrId("pond.back_to_system")
+  bodyTop: Battery.State.present ? 118 : 92
   contentHeight: fields.height + 30
   property string power: System.Idle.source
   property string dropdownField: ""
   property real dropdownCenter: 0
   readonly property var rows: [
-    {key: "lock", title: "Lock screen after inactivity for"},
-    {key: "display", title: "Turn display off after inactivity for"},
-    {key: "sleep", title: "Sleep after inactivity"}
+    {key: "lock", title: qsTrId("settings.lock_after_inactivity")},
+    {key: "display", title: qsTrId("settings.display_after_inactivity")},
+    {key: "sleep", title: qsTrId("settings.sleep_after_inactivity")}
   ]
   onBackRequested: { if (dropdownField) closeDropdown(); else Settings.State.back(); }
   Keys.onEscapePressed: { if (dropdownField) closeDropdown(); else Settings.State.back(); }
@@ -50,14 +51,14 @@ Settings.Modal {
     Rectangle {
       objectName: "lockPower"
       visible: Battery.State.present
-      x: root.width - width - 30; y: 20; width: 168; height: 41; radius: 12
+      x: root.width - width - 30; y: 64; width: 204; height: 41; radius: 12
       color: "transparent"; border.width: 1; border.color: "#262626"
       opacity: root.dropdownField ? 0.3 : 1
       enabled: !root.dropdownField
       Row {
         x: 2; y: 2
         Repeater {
-          model: [{key: "pluggedIn", label: "Plugged in", width: 80}, {key: "battery", label: "On Battery", width: 84}]
+          model: [{key: "pluggedIn", label: qsTrId("settings.plugged_in"), width: 100}, {key: "battery", label: qsTrId("settings.on_battery"), width: 100}]
           delegate: Rectangle {
             id: segment
             required property var modelData
@@ -97,11 +98,12 @@ Settings.Modal {
       id: dropdownLoader
       active: !!root.dropdownField
       x: root.width - width - 38
-      y: root.dropdownCenter - height / 2
+      y: Math.max(60, Math.min(root.dropdownCenter - height / 2, root.height - height - 24))
       sourceComponent: Component {
         Settings.Dropdown {
           objectName: "lockDropdown"
           width: 181
+          maximumHeight: Math.max(56, root.height - 84)
           options: System.Idle.options
           currentValue: String(System.Idle.timeouts[root.power][root.dropdownField])
           onDismissed: root.closeDropdown()

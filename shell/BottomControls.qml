@@ -7,15 +7,23 @@ import "wifi" as Wifi
 Card {
   id: root
   property real collapseProgress: 0
+  // Set by the bottom bar; keeps the volume popup beside the sidebar when unset.
+  property var barHost: null
+  // Set by the bottom bar: keep its controls in a row when collapsed
+  // instead of folding them into a tall ladder.
+  property bool horizontal: false
+  property real rowHeight: 48
   signal collapseClicked
   readonly property real widthProgress: Theme.collapseWidth(collapseProgress)
   readonly property real heightProgress: Theme.collapseHeight(collapseProgress)
-  width: Theme.lerp(156, 48, widthProgress)
-  height: Theme.lerp(openExpandedHeight, 168, heightProgress)
+  width: horizontal ? 192 : Theme.lerp(156, 48, widthProgress)
+  height: horizontal ? rowHeight + (collapsed ? 0 : hoverHeightRetained ? 32 : 0)
+      : Theme.lerp(openExpandedHeight, 208, heightProgress)
   contentClipped: false
   radius: Theme.daylight ? Theme.lerp(12, 16, heightProgress) : Theme.sidebarCardRadius
 
   property bool wifiOpen: false
+  property bool bluetoothOpen: false
   property bool soundOpen: false
   property bool settingsOpen: false
   property bool wifiHoverRetained: false
@@ -34,6 +42,7 @@ Card {
   readonly property bool soundSliderContentVisible: displayedReveal === "sound"
   readonly property string requestedReveal: wifiPresentationRequested ? "wifi"
       : soundSliderRequested ? "sound" : ""
+  signal bluetoothClicked
   signal wifiClicked
   signal settingsClicked
   signal soundClicked
@@ -63,7 +72,9 @@ Card {
   // its rendered height rather than the final 80px target. Because this card
   // is bottom-anchored, that keeps the four controls fixed on the baseline
   // instead of moving down once and then riding back up with the card.
-  readonly property real expandedControlsY: collapseProgress <= 0.001
+  readonly property real expandedControlsY: horizontal
+      ? height - rowHeight + (rowHeight - 40) / 2
+      : collapseProgress <= 0.001
       ? height - 44 : openExpandedHeight - 44
 
   onWifiButtonHoveredChanged: {
@@ -134,15 +145,21 @@ Card {
     active: root.collapsedVolumeVisible
     PanelWindow {
       id: volumeWindow
-      readonly property real cardX: root.besideSidebar ? Theme.sidebarOuterMargin + root.width + 4
-          : Math.round((screen.width + Theme.sidebarOuterMargin
-              + Theme.sidebarCardCollapsedWidth - Theme.sidebarCardExpandedWidth) / 2)
+      readonly property real barStrip: root.barHost ? root.barHost.stripHeight : 0
+      readonly property real cardX: root.barHost
+          ? Math.round(screen.width - Theme.sidebarOuterMargin - root.width / 2
+                       - Theme.sidebarCardExpandedWidth / 2)
+          : root.besideSidebar ? Theme.sidebarOuterMargin + root.width + 4
+              : Math.round((screen.width + Theme.sidebarOuterMargin
+                  + Theme.sidebarCardCollapsedWidth - Theme.sidebarCardExpandedWidth) / 2)
       readonly property real cardBottom: root.besideSidebar ? Math.round(Theme.sidebarOuterMargin + root.height - 46 - 36) : 40
       screen: root.QsWindow.window ? root.QsWindow.window.screen : null
       color: "transparent"
       BackgroundEffect.blurRegion: Theme.daylight ? volumeCard.blurRegion : null
       implicitWidth: cardX + Theme.sidebarCardExpandedWidth + 67
-      implicitHeight: cardBottom + 36 + 67
+      implicitHeight: root.barHost
+          ? Math.round(barStrip + 4 + 36 + 67)
+          : cardBottom + 36 + 67
       anchors { left: true; bottom: true }
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.namespace: "pond-volume"
@@ -195,7 +212,7 @@ Card {
     id: noInternetLabel
     anchors.horizontalCenter: parent.horizontalCenter
     y: 14.5 + noInternetMetrics.capitalHeight - baselineOffset
-    text: "No internet"
+    text: qsTrId("pond.no_internet")
     color: "white"
     font.family: Theme.fontFamily
     font.weight: Font.Medium
@@ -268,6 +285,34 @@ Card {
     }
   }
 
+  IconButton {
+    id: bluetoothAction
+    objectName: "bluetoothBarButton"
+    x: root.horizontal ? 42 : Theme.lerp(33.6, 4, root.widthProgress)
+    y: root.horizontal ? (root.collapsed ? (root.rowHeight - 40) / 2 : root.expandedControlsY)
+        : Theme.lerp(root.expandedControlsY, 44, root.heightProgress)
+    width: root.horizontal ? 36 : Theme.lerp(29.6, 40, root.widthProgress)
+    height: 40
+    iconSource: Qt.resolvedUrl("assets/settings/bluetooth.svg")
+    iconWidth: 9
+    iconHeight: 14.4
+    restingOpacity: root.bluetoothOpen ? 1 : 0.6
+    onHoveredChanged: if (hovered) root.wifiHoverRetained = false
+    onClicked: root.bluetoothClicked()
+    Accessible.role: Accessible.Button
+    Accessible.name: qsTrId("pond.bluetooth")
+    Accessible.onPressAction: bluetoothAction.clicked()
+    Rectangle {
+      anchors.fill: parent
+      z: -1
+      radius: 4
+      color: Theme.daylight
+          ? (root.bluetoothOpen || bluetoothAction.hovered ? Theme.sidebarHoverFill : Theme.sidebarClearFill)
+          : root.bluetoothOpen ? "#303030" : bluetoothAction.hovered ? "#262626" : "transparent"
+      Behavior on color { ColorAnimation { duration: 120; easing.type: Easing.OutCubic } }
+    }
+  }
+
   readonly property var icons: [
       { icon: Wifi.State.statusIcon,
         width: Wifi.State.statusIcon === "wifi.svg" ? 13.9972 : 14,
@@ -284,12 +329,17 @@ Card {
       readonly property bool vertical: index > 3
       readonly property int slot: vertical ? index - 3 : index
       readonly property var modelData: root.icons[slot]
-      opacity: slot === 0 || (vertical ? root.collapseProgress >= 0.56
-          : root.collapseProgress < 0.56) ? 1 : 0
+      opacity: root.horizontal ? (vertical ? 0 : 1)
+          : (slot === 0 || (vertical ? root.collapseProgress >= 0.56
+              : root.collapseProgress < 0.56) ? 1 : 0)
       visible: opacity > 0.001
-      x: vertical ? 4 : Theme.lerp([4, 42, 78, 114][slot], 4, root.widthProgress)
-      y: vertical ? 4 + slot * 40 : Theme.lerp(root.expandedControlsY, 4, root.widthProgress)
-      width: vertical ? 40 : Theme.lerp(slot === 0 || slot === 3 ? 38 : 36, 40, root.widthProgress)
+      x: vertical ? 4 : root.horizontal ? [4, 78, 114, 150][slot]
+          : Theme.lerp([4, 63.2, 92.8, 122.4][slot], 4, root.widthProgress)
+      y: vertical ? 4 + (slot > 0 ? slot + 1 : 0) * 40 : root.horizontal
+          ? (root.collapsed ? (root.rowHeight - 40) / 2 : root.expandedControlsY)
+          : Theme.lerp(root.expandedControlsY, 4, root.widthProgress)
+      width: vertical ? 40 : root.horizontal ? [38, 36, 36, 38][slot]
+          : Theme.lerp(29.6, 40, root.widthProgress)
       height: 40
       enabled: opacity > 0.5
       onHoveredChanged: {
@@ -308,17 +358,19 @@ Card {
         else root.collapseClicked();
       }
       Accessible.role: Accessible.Button
-      Accessible.name: slot === 0 ? "Wi-Fi" : slot === 1 ? "Sound"
-          : slot === 2 ? "Settings" : root.collapseProgress < 0.5 ? "Collapse sidebar" : "Expand sidebar"
+      Accessible.name: slot === 0 ? "Wi-Fi" : slot === 1 ? qsTrId("pond.sound")
+          : slot === 2 ? qsTrId("pond.settings") : root.collapseProgress < 0.5 ? qsTrId("pond.collapse_sidebar") : qsTrId("pond.expand_sidebar")
       Accessible.onPressAction: action.clicked()
 
       Rectangle {
         anchors.fill: parent
         z: -1
         topLeftRadius: action.slot === 0 ? 12 : 4
-        topRightRadius: action.slot === 0 ? Theme.lerp(4, 12, root.collapseProgress)
+        topRightRadius: root.horizontal ? (action.slot === 3 ? 12 : 4)
+            : action.slot === 0 ? Theme.lerp(4, 12, root.collapseProgress)
             : action.slot === 3 ? Theme.lerp(12, 4, root.collapseProgress) : 4
-        bottomLeftRadius: action.slot === 0 ? Theme.lerp(12, 4, root.collapseProgress)
+        bottomLeftRadius: root.horizontal ? (action.slot === 0 ? 12 : 4)
+            : action.slot === 0 ? Theme.lerp(12, 4, root.collapseProgress)
             : action.slot === 3 ? Theme.lerp(4, 12, root.collapseProgress) : 4
         bottomRightRadius: action.slot === 3 ? 12 : 4
         color: Theme.daylight ? (action.selected || action.hovered ? Theme.sidebarHoverFill : Theme.sidebarClearFill)
@@ -337,7 +389,8 @@ Card {
           source: "assets/navigation/collapse.svg"
           sourceSize: Qt.size(Math.ceil(width * 2), Math.ceil(height * 2))
           fillMode: Image.PreserveAspectFit
-          rotation: index === 0 ? 90 : -90
+          rotation: root.horizontal ? (index === 0 ? 0 : 180)
+              : (index === 0 ? 90 : -90)
           readonly property real flipProgress: root.collapseProgress >= 0.5 ? 1 : 0
           opacity: action.glyphOpacity * (index === 0 ? 1 - flipProgress : flipProgress)
           smooth: true

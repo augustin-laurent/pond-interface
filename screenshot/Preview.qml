@@ -9,11 +9,12 @@ Item {
   id: root
   required property string outputName
   property bool collapsed: false
+  property real expandedHeight: 112
   property bool dragging: false
   readonly property bool hasScreenshot: Screenshot.State.imageSource !== ""
       && Screenshot.State.outputName === outputName
   width: collapsed ? 48 : 156
-  height: hasScreenshot ? (collapsed ? 48 : 112) : 0
+  height: hasScreenshot ? (collapsed ? 48 : expandedHeight) : 0
   visible: hasScreenshot
   opacity: dragging ? 0 : 1
 
@@ -127,7 +128,7 @@ Item {
     objectName: "dismissScreenshot"
     x: 8
     y: 8
-    label: "Dismiss screenshot"
+    label: qsTrId("pond.dismiss_screenshot")
     iconSource: Qt.resolvedUrl("assets/close.svg")
     onActivated: Screenshot.State.dismiss()
   }
@@ -135,7 +136,7 @@ Item {
     objectName: "copyScreenshot"
     x: parent.width - width - 8
     y: 8
-    label: "Copy screenshot"
+    label: qsTrId("pond.copy_screenshot")
     iconSource: Qt.resolvedUrl("assets/copy.svg")
     onActivated: Screenshot.State.copy()
   }
@@ -149,7 +150,7 @@ Item {
     visible: Screenshot.State.copied && !root.collapsed
     Text {
       anchors.centerIn: parent
-      text: "Copy’d"
+      text: qsTrId("pond.copy_d")
       color: "#3D2C52"
       font { family: "Onest"; pixelSize: 13; weight: Font.Medium }
     }

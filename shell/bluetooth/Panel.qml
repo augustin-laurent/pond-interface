@@ -11,7 +11,7 @@ Shell.CardStack {
   pageComponents: ({drawer: drawerComponent, nearby: nearbyComponent,
                     details: detailsComponent, pair: pairingComponent})
   onSearchActiveChanged: service.setDiscoveryConsumer(root, searchActive)
-  onPanelOpened: { service.panelOpen = true; service.errorText = ""; nearbyConnection = ""; connectionComplete = false; }
+  onPanelOpened: { service.panelOpen = true; service.errorCode = ""; nearbyConnection = ""; connectionComplete = false; }
   onPanelClosed: { service.panelOpen = false; service.cancelPairing(); nearbyConnection = ""; connectionComplete = false; }
   onPagePopping: page => {
     if (page === "pair" || page === "nearby") service.cancelPairing();

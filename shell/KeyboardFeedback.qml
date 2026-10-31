@@ -8,6 +8,8 @@ Item {
   objectName: "keyboardFeedback"
   required property var screen
   required property real collapseProgress
+  // Set by the bottom bar; feedback then anchors above the strip.
+  property var barHost: null
   required property real expandedTopMargin
   readonly property bool collapsed: collapseProgress >= 0.56
   readonly property real cardHeight: 20 + NiriMsg.keyboardLayouts.length * 28
@@ -33,11 +35,15 @@ Item {
       color: "transparent"
       BackgroundEffect.blurRegion: Theme.daylight ? card.blurRegion : null
       implicitWidth: Theme.sidebarCardExpandedWidth + (root.collapsed ? 134 : 0)
-      implicitHeight: root.cardHeight + (root.collapsed ? 107 : 0)
-      anchors { left: true; top: !root.collapsed; bottom: root.collapsed }
-      margins.left: root.collapsed ? Math.round((screen.width + Theme.sidebarOuterMargin
-          + Theme.sidebarCardCollapsedWidth - implicitWidth) / 2) : Theme.sidebarOuterMargin
-      margins.top: root.collapsed ? 0 : Math.round(root.expandedTopMargin)
+      implicitHeight: root.barHost ? root.cardHeight
+          : root.cardHeight + (root.collapsed ? 107 : 0)
+      anchors { left: true; top: !root.collapsed && !root.barHost; bottom: root.collapsed || !!root.barHost }
+      margins.left: root.barHost
+          ? Math.round((screen.width - implicitWidth) / 2)
+          : root.collapsed ? Math.round((screen.width + Theme.sidebarOuterMargin
+              + Theme.sidebarCardCollapsedWidth - implicitWidth) / 2) : Theme.sidebarOuterMargin
+      margins.top: root.collapsed && !root.barHost ? 0 : Math.round(root.expandedTopMargin)
+      margins.bottom: root.barHost ? Math.round(root.barHost.stripHeight + 10) : 0
       onMarginsChanged: contentItem.Window.window?.requestUpdate()
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.namespace: "pond-keyboard"
@@ -55,7 +61,7 @@ Item {
         id: card
         objectName: "keyboardLayoutCard"
         x: root.collapsed ? 67 : 0
-        y: root.collapsed ? 67 : 0
+        y: root.collapsed && !root.barHost ? 67 : 0
         width: Theme.sidebarCardExpandedWidth; height: root.cardHeight
         radius: PanelStyle.rowRadius
         classicColor: PanelStyle.surface

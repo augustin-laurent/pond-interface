@@ -9,7 +9,9 @@ FocusScope {
   property string currentValue
   signal selected(string value)
   signal dismissed
-  function pick(option) { if (!option.disabled) selected(String(option.value)); }
+  function pick(option) {
+    if (option && !option.disabled && !option.separator) selected(String(option.value));
+  }
   width: 276
   height: Math.min(maximumHeight, options.reduce((total, option) => total + (option.separator ? 9 : 40), 16))
   Shell.Shadow { anchors.fill: parent; cornerRadius: 16; shadows: Shell.PanelStyle.controlShadows }
@@ -26,21 +28,23 @@ FocusScope {
       x: 8; y: 8; width: parent.width - 16; height: parent.height - 16
       model: root.options
       focus: true; keyNavigationEnabled: true
-      currentIndex: Math.max(0, root.options.findIndex(o => String(o.value) === root.currentValue))
+      currentIndex: root.options.length ? Math.max(0, root.options.findIndex(o => String(o.value) === root.currentValue)) : -1
       onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
       Component.onCompleted: positionViewAtIndex(currentIndex, ListView.Contain)
-      function step(move) {
-        let previous;
-        do {
-          previous = currentIndex;
-          move();
-        } while (currentIndex !== previous && root.options[currentIndex].disabled);
+      function step(direction) {
+        for (let index = currentIndex + direction; index >= 0 && index < root.options.length; index += direction) {
+          const option = root.options[index];
+          if (!option.disabled && !option.separator) {
+            currentIndex = index;
+            return;
+          }
+        }
       }
       Keys.onEscapePressed: root.dismissed()
       Keys.onReturnPressed: root.pick(root.options[currentIndex])
       Keys.onSpacePressed: root.pick(root.options[currentIndex])
-      Keys.onUpPressed: step(decrementCurrentIndex)
-      Keys.onDownPressed: step(incrementCurrentIndex)
+      Keys.onUpPressed: step(-1)
+      Keys.onDownPressed: step(1)
       ScrollBar.vertical: ScrollBar { width: 3; policy: ScrollBar.AsNeeded }
       delegate: Rectangle {
         id: option

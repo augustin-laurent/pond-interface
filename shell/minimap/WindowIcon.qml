@@ -29,7 +29,7 @@ Item {
   Rectangle {
     id: chrome
     anchors.fill: parent
-    radius: width / 2
+    radius: width / 4
     antialiasing: true
     // Fade alpha without interpolating the fill through transparent black.
     color: root.lifted ? Shell.Theme.workspaceDragBackground : root.hovered ? Shell.Theme.workspaceControlHover
@@ -58,7 +58,8 @@ Item {
   IconImage {
     anchors.centerIn: parent
     visible: (root.windowData.iconSource || "") !== ""
-    width: Shell.Theme.workspaceIconSize * (root.lifted ? Shell.Theme.workspaceDragGlyphScale : 1)
+    width: Math.min(Shell.Theme.workspaceIconSize * 1.25, root.controlSize * 0.5)
+        * (root.lifted ? Shell.Theme.workspaceDragGlyphScale : 1)
     height: width
     source: root.windowData.iconSource || ""
     asynchronous: true

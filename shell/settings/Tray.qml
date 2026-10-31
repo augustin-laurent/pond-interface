@@ -23,7 +23,7 @@ Item {
       disabled: entry.isSeparator || !entry.enabled,
       checked: entry.checkState === Qt.Checked, submenu: entry.hasChildren
     }));
-    return menuPath.length > 1 ? [{value: -1, label: "Back"}].concat(rows) : rows;
+    return menuPath.length > 1 ? [{value: -1, label: qsTrId("pond.back")}].concat(rows) : rows;
   }
   readonly property bool menuOpen: options.length > 0
 

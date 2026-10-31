@@ -14,7 +14,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    radius: width / 2
+    radius: width / 4
     antialiasing: true
     color: pointer.containsMouse ? Shell.Theme.workspaceControlHover : "transparent"
     border.width: pointer.containsMouse ? 0 : Shell.Theme.sidebarStrokeWidth
@@ -37,7 +37,7 @@ Item {
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
     Accessible.role: Accessible.Button
-    Accessible.name: "Open launcher on this workspace"
+    Accessible.name: qsTrId("pond.open_launcher_on_this_workspace")
     Accessible.onPressAction: root.activated()
     onClicked: root.activated()
   }

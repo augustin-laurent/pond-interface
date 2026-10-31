@@ -15,10 +15,10 @@ Singleton {
   readonly property var current: timeouts[source]
 
   function label(seconds) {
-    if (!seconds) return "Never";
+    if (!seconds) return qsTrId("settings.never");
     const hours = seconds >= 3600;
-    const count = Math.round(seconds / (hours ? 3600 : 60));
-    return count + (hours ? " hour" : " min") + (count === 1 ? "" : "s");
+    return hours ? qsTrId("time.hours", Math.round(seconds / 3600))
+        : qsTrId("time.minutes", Math.round(seconds / 60));
   }
   function set(power, key, seconds) {
     timeouts = Object.assign({}, timeouts, {[power]: Object.assign({}, timeouts[power], {[key]: seconds})});
