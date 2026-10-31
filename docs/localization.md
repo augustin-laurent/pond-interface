@@ -50,8 +50,16 @@ and translate its values. Missing entries fall back to English; the shipped
 English and French catalogs must be complete. Language choices are discovered
 from the embedded filenames and displayed with native language names.
 
-Helpers return stable error IDs and parameters; `detail` is diagnostic text, not
-UI text. Never use translated text as a status value or comparison.
+Validate before building:
+
+```sh
+python3 tools/translations.py
+```
+
+The validator checks JSON structure, duplicate IDs, referenced messages (including
+helper error/status IDs), plural forms, and placeholders. Helpers return stable
+error IDs and parameters; `detail` is diagnostic text, not UI text. Never use
+translated text as a status value or comparison.
 
 Rebuild after editing a catalog; reconfigure and build after adding a language.
 CMake embeds the JSON directly in `Pond.Localization`. There is no extraction or
@@ -98,3 +106,23 @@ System packages use `cmake --install build --prefix /usr`. This installs the nat
 QML modules and catalogs together with shell, lockscreen, screenshot, and wallpaper
 runtime files. SDDM uses the standard system Qt QML import path. Installing only
 QML files without their matching native module is unsupported.
+
+For a reversible user deployment, stage into a new release directory:
+
+```sh
+python3 tools/stage-session.py build "$HOME/.local/share/pond-interface/releases/native-qt"
+qs -p "$HOME/.local/share/pond-interface/releases/native-qt/share/pond-interface/shell"
+```
+
+The staging command prepends a Quickshell environment pragma giving that release's
+native-module search path to both shell and lockscreen entry points. It does not
+activate the release. SDDM is a separate system deployment; it is not affected by
+the user's named shell override.
+
+After startup checks pass, point `~/.config/quickshell/pond-shell` to the staged
+shell and start `qs -c pond-shell -d`. Verify its IPC and settings before stopping
+the previous instance by its specific PID. Keep the previous symlink target and
+release directory. To roll back, restore that target, start its shell, verify it,
+and stop only the replacement instance. Existing locale preferences remain
+compatible with both implementations. Do not replace an active lock process or
+restart a locked session as part of deployment.
