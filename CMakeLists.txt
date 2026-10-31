@@ -20,6 +20,9 @@ set_target_properties(pond_systemplugin PROPERTIES INSTALL_RPATH "$ORIGIN")
 
 add_subdirectory(localization)
 
+install(PROGRAMS shell/settings/system/set-system-locale.py
+    DESTINATION libexec/pond-interface RENAME set-system-locale)
+
 add_subdirectory(screenshot/native)
 install(TARGETS pond_system pond_systemplugin
     LIBRARY DESTINATION lib/qt6/qml/Pond/System)

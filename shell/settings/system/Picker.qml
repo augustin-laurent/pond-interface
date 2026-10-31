@@ -9,6 +9,10 @@ Settings.Modal {
   property var selected: []
   property bool multiple: false
   property string placeholder
+  property var confirmationIds: []
+  property string confirmationText: ""
+  property string errorText: ""
+  property string pendingSelection: ""
   signal picked(string id)
   readonly property string query: search.text.trim().toLowerCase()
   readonly property var rows: {
@@ -20,9 +24,10 @@ Settings.Modal {
   bodyTop: 143
   roundedContent: true
   onBackRequested: Settings.State.back()
-  Keys.onEscapePressed: { if (search.text) search.clear(); else Settings.State.back(); }
+  Keys.onEscapePressed: { if (pendingSelection) pendingSelection = ""; else if (search.text) search.clear(); else Settings.State.back(); }
 
   function choose(id) {
+    if (confirmationIds.includes(id)) { pendingSelection = id; return; }
     picked(id);
     search.clear();
     search.forceActiveFocus();
@@ -200,6 +205,60 @@ Settings.Modal {
           }
         }
       }
+    },
+    Rectangle {
+      anchors.fill: parent
+      visible: !!root.pendingSelection
+      color: "#d9000000"
+      radius: root.radius
+      MouseArea { anchors.fill: parent }
+      Rectangle {
+        anchors.centerIn: parent
+        width: parent.width - 60; height: 185; radius: 20
+        color: "#303030"
+        Accessible.role: Accessible.Dialog
+        Accessible.name: confirmation.text
+        Text {
+          id: confirmation
+          x: 20; y: 20; width: parent.width - 40
+          text: root.confirmationText.arg(root.options.find(option => option.id === root.pendingSelection)?.label || "")
+          color: "white"; wrapMode: Text.WordWrap
+          font.family: Shell.Theme.fontFamily; font.pixelSize: 15
+        }
+        Row {
+          anchors.right: parent.right; anchors.rightMargin: 20
+          anchors.bottom: parent.bottom; anchors.bottomMargin: 20
+          spacing: 10
+          Repeater {
+            model: [qsTrId("pond.cancel"), qsTrId("settings.locale_install")]
+            delegate: Rectangle {
+              required property string modelData
+              required property int index
+              width: 140; height: 42; radius: 10
+              color: index === 1 ? "#cbc0fa" : "#494949"
+              Accessible.role: Accessible.Button
+              Accessible.name: modelData
+              activeFocusOnTab: visible
+              function activate() {
+                const chosen = root.pendingSelection;
+                root.pendingSelection = "";
+                if (index === 1) root.picked(chosen);
+              }
+              Accessible.onPressAction: activate()
+              Keys.onReturnPressed: activate()
+              Keys.onSpacePressed: activate()
+              Text { anchors.centerIn: parent; text: parent.modelData; color: parent.index === 1 ? "#211b31" : "white"; font.family: Shell.Theme.fontFamily; font.pixelSize: 14 }
+              TapHandler { onTapped: parent.activate() }
+            }
+          }
+        }
+      }
+    },
+    Text {
+      visible: !!root.errorText && !root.pendingSelection
+      x: 30; y: root.height - height - 12; width: root.width - 60
+      text: root.errorText; color: "#ffb4ab"; wrapMode: Text.WordWrap
+      font.family: Shell.Theme.fontFamily; font.pixelSize: 13
     }
   ]
 }

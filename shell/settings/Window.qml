@@ -326,14 +326,13 @@ PanelWindow {
     System.Picker {
       title: qsTrId("settings.interface_language")
       placeholder: qsTrId("pond.search_languages")
-      options: [{id: "system", label: qsTrId("settings.follow_system")}].concat(Localization.availableLanguages)
-      selected: [Localization.preference]
-      onPicked: language => {
-        if (!Localization.setPreference(language)) {
-          System.State.errorCode = "localization.save_failed";
-          Settings.State.back();
-        }
-      }
+      options: Localization.availableLanguages.filter(option => ["en", "fr"].includes(option.id))
+      selected: [System.State.interfaceLanguage]
+      enabled: System.State.localeLoaded && !System.State.busy
+      confirmationIds: options.map(option => option.id).filter(id => !System.State.installedInterfaceLanguages.includes(id))
+      confirmationText: qsTrId("settings.locale_install_confirm")
+      errorText: System.State.error
+      onPicked: language => System.State.setInterfaceLanguage(language)
       availableHeight: Math.max(200, root.height - 70)
       scale: Math.min(1, (root.width - 60) / implicitWidth)
     }

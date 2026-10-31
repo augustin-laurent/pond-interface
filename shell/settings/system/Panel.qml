@@ -36,7 +36,7 @@ Settings.Modal {
       objectName: "systemInterfaceLanguage"
       width: parent.width; navigation: true
       title: qsTrId("settings.interface_language")
-      value: Localization.preference === "system" ? qsTrId("settings.follow_system") : Localization.availableLanguages.find(option => option.id === Localization.preference)?.label || ""
+      value: Localization.availableLanguages.find(option => option.id === System.State.interfaceLanguage)?.label || System.State.systemLocale
       onClicked: Settings.State.openPage("interface-language")
     }
     Settings.Field {

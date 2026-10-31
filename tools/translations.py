@@ -6,7 +6,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOGS = ROOT / 'translations'
-MESSAGE_ID = re.compile(r'''["']((?:pond|wifi|localization|hardware|settings|time|notifications|displays)\.[a-z0-9_]+)["']''')
+MESSAGE_ID = re.compile(r'''["']((?:pond|wifi|localization|lockscreen|hardware|settings|time|notifications|displays)\.[a-z0-9_]+)["']''')
 PLACEHOLDER = re.compile(r'%(?:L?n|L?\d+)')
 
 
