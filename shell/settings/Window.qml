@@ -233,6 +233,17 @@ PanelWindow {
     }
   }
 
+  Tray {
+    z: 3
+    anchors.fill: parent
+    enabled: root.cardsOpen
+    visible: opacity > 0
+    opacity: root.cardsOpen ? 1 : 0
+    Behavior on opacity {
+      NumberAnimation { duration: Settings.Style.closeDuration; easing.type: Easing.OutCubic }
+    }
+  }
+
   // Keep navigation, transitions, and outside-click dismissal in the host.
   Loader {
     id: modal

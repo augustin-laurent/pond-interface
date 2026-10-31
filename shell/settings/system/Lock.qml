@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "." as System
 import ".." as Settings
-import "../display" as Display
 import "../../battery" as Battery
 import "../.." as Shell
 
@@ -25,7 +24,7 @@ Settings.Modal {
   function openDropdown(key, field) {
     dropdownCenter = field.mapToItem(root, 0, field.height / 2).y;
     dropdownField = key;
-    Qt.callLater(() => { const menu = dropdownLoader.item as Display.Dropdown; if (menu) menu.forceActiveFocus(); });
+    Qt.callLater(() => { const menu = dropdownLoader.item as Settings.Dropdown; if (menu) menu.forceActiveFocus(); });
   }
   Column {
     id: fields
@@ -100,7 +99,7 @@ Settings.Modal {
       x: root.width - width - 38
       y: root.dropdownCenter - height / 2
       sourceComponent: Component {
-        Display.Dropdown {
+        Settings.Dropdown {
           objectName: "lockDropdown"
           width: 181
           options: System.Idle.options
