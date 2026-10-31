@@ -296,7 +296,7 @@ Item {
                 backgroundTexture: backdropTexture
                 backgroundSize: Qt.size(canvas.width, canvas.height)
                 x: canvas.width - 240
-                y: 1041
+                y: 1068 - height
                 width: 228
                 text: qsTrId("pond.some_features_may_not_work_as_expected_please_report_any_issues_or_bugs")
                 font.family: theme.uiFont

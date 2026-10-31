@@ -69,18 +69,25 @@ screen, and screenshot UI all use them. Shell-only helpers stay under `shell/`.
 
 ## Preferences and locale
 
-`Localization.useUserPreferences()` enables the session preference and watches
-`$XDG_CONFIG_HOME/pond-interface/locale.json` (default `~/.config`). Its existing
-format is preserved: `{"language":"system"}`, `"en"`, or `"fr"`. A successful
-`setPreference(code)` atomically persists and immediately applies it; failure
-returns false, exposes `errorCode`, and keeps the prior selection. Other session
-processes observe changes, including creation of a previously missing directory.
+Pond's language setting changes the system locale, including regional formats
+and the language used by SDDM. The current choices are French (`fr_FR.UTF-8`)
+and English (`en_US.UTF-8`). Pond offers to generate a missing locale before
+applying it. Both generation and changing the locale require administrator
+authentication through Polkit. The installed helper is restricted to these
+locales and requires `/usr/bin/localedef`, `/usr/bin/localectl`, and the system
+locale definitions; generating a locale also updates `/etc/locale.gen`.
 
-The SDDM entry point calls `useSystemLocale()`: it never reads/writes user
-preferences. System language variants resolve through Qt's language preferences
-and available base catalogs, finally falling back to English. Regional formatting
-follows the system locale in system mode and the selected locale for overrides.
-Dates, times and numbers use Qt formatting, not language-specific branches.
+The shell and lock screen watch `/etc/locale.conf` and update their translations
+and formatting after the system setting changes. Previously saved Pond-only
+language preferences are no longer used by these entry points. Other programs
+may need to be restarted or a new login before they pick up the new locale.
+
+The SDDM entry point also follows `/etc/locale.conf` and never reads or writes
+user preferences. This avoids inheriting an old locale from the running display
+manager. Language variants resolve through the available catalogs, finally
+falling back to English. Dates, times and numbers use Qt formatting.
+After rebuilding, install the updated native module and privileged helper
+system-wide along with the greeter to apply these changes.
 
 The illustrated manual and its SVG tooltips use localized artwork resolved by
 `Localization.asset(Qt.resolvedUrl("path/to/original.svg"))`. Put a translated

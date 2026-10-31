@@ -7,7 +7,7 @@ import "../frontend" as Frontend
 
 Item {
     id: root
-    Component.onCompleted: Localization.useSystemLocale()
+    Component.onCompleted: Localization.useSystemConfiguration()
     property var loginBackend: sddm
     property var accountModel: userModel
     property var desktopModel: sessionModel

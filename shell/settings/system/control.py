@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import time
@@ -15,6 +16,31 @@ from kdl import atomic_write, get_properties, set_properties
 
 INPUT = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'niri/cfg/input.kdl'
 ENGLISH = QLocale('en_US')
+INTERFACE_LOCALES = {'en': 'en_US.UTF-8', 'fr': 'fr_FR.UTF-8'}
+
+
+def normalize_locale(value):
+    return value.lower().replace('-', '').replace('_', '').replace('.', '')
+
+
+def interface_locale():
+    name = ''
+    try:
+        for line in Path('/etc/locale.conf').read_text().splitlines():
+            key, separator, value = line.partition('=')
+            if separator and key.strip() == 'LANG':
+                values = shlex.split(value, comments=True)
+                name = values[0] if len(values) == 1 else ''
+    except (OSError, ValueError):
+        pass
+    if not name:
+        name = QLocale.system().name()
+    installed = {normalize_locale(value) for value in run('/usr/bin/locale', '-a').splitlines()}
+    language = QLocale(name).name().split('_')[0]
+    return {'systemLocale': name,
+            'interfaceLanguage': language if language in INTERFACE_LOCALES else '',
+            'installedInterfaceLanguages': [key for key, value in INTERFACE_LOCALES.items()
+                                            if normalize_locale(value) in installed]}
 
 
 def run(*args, timeout=15):
@@ -79,7 +105,7 @@ def status():
     ids = {item['label']: item['id'] for item in layouts()}
     names = keyboard()['names']
     timezone = bytes(QTimeZone.systemTimeZoneId()).decode()
-    return {'selectedLanguages': [ids.get(name, name) for name in names], 'languageNames': names,
+    return {**interface_locale(), 'selectedLanguages': [ids.get(name, name) for name in names], 'languageNames': names,
             'timezone': timezone, 'timezoneLabel': zone(timezone, QDateTime.currentDateTimeUtc())['label'],
             'mouse': mouse()}
 

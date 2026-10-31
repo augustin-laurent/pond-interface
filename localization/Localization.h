@@ -26,6 +26,7 @@ public:
     QVariantList availableLanguages() const;
     QString errorCode() const;
     Q_INVOKABLE void useUserPreferences();
+    Q_INVOKABLE void useSystemConfiguration();
     Q_INVOKABLE void useSystemLocale();
     Q_INVOKABLE bool setPreference(const QString &language);
     Q_INVOKABLE QString timeZoneName(const QString &id) const;

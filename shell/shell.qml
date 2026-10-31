@@ -16,7 +16,7 @@ import Pond.System
 ShellRoot {
   id: root
   property bool expanded: true
-  Component.onCompleted: Localization.useUserPreferences()
+  Component.onCompleted: Localization.useSystemConfiguration()
 
   Shortcuts {}
 

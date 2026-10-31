@@ -17,7 +17,7 @@ ShellRoot {
         suspendWait.restart();
     }
     Component.onCompleted: {
-        Localization.useUserPreferences();
+        Localization.useSystemConfiguration();
         // Reloading a secure lock must never destroy its authentication state.
         Quickshell.watchFiles = false;
         if (Quickshell.env("POND_LOCK_NO_START") !== "1")

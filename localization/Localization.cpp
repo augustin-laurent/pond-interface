@@ -9,6 +9,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QTimeZone>
@@ -28,6 +29,8 @@ public:
         path = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/pond-interface/locale.json";
         connect(&watcher, &QFileSystemWatcher::fileChanged, this, &LocalizationState::read);
         connect(&watcher, &QFileSystemWatcher::directoryChanged, this, &LocalizationState::read);
+        connect(&systemWatcher, &QFileSystemWatcher::fileChanged, this, &LocalizationState::readSystem);
+        connect(&systemWatcher, &QFileSystemWatcher::directoryChanged, this, &LocalizationState::readSystem);
         apply("system");
     }
     ~LocalizationState() override {
@@ -39,9 +42,10 @@ public:
     QString preference = "system", language = "en", error, path;
     QLocale locale;
     QStringList languages;
-    bool user = false;
+    bool user = false, systemConfiguration = false;
     QList<QPointer<QQmlEngine>> engines;
     QFileSystemWatcher watcher;
+    QFileSystemWatcher systemWatcher;
     JsonTranslator english, selected;
 
     void notify() {
@@ -53,8 +57,7 @@ public:
                 if (engine) engine->retranslate();
         });
     }
-    QString resolve(const QString &name) const {
-        const QLocale requested(name);
+    QString resolve(const QLocale &requested) const {
         for (auto candidate : requested.uiLanguages()) {
             candidate.replace('-', '_');
             while (!candidate.isEmpty()) {
@@ -66,8 +69,18 @@ public:
         return "en";
     }
     void apply(const QString &value) {
-        const auto nextLocale = value == "system" ? QLocale::system() : QLocale(value);
-        const auto nextLanguage = resolve(nextLocale.name());
+        QLocale nextLocale = value == "system" ? QLocale::system() : QLocale(value);
+        if (value == "system" && systemConfiguration) {
+            QFile file("/etc/locale.conf");
+            if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                const QString content = QString::fromUtf8(file.readAll());
+                const QRegularExpression line(QStringLiteral("^[ \\t]*LANG[ \\t]*=[ \\t]*[\\\"']?([A-Za-z0-9_.@-]+)[\\\"']?[ \\t]*(?:#.*)?$"),
+                                              QRegularExpression::MultilineOption);
+                const auto match = line.match(content);
+                if (match.hasMatch()) nextLocale = QLocale(match.captured(1));
+            }
+        }
+        const auto nextLanguage = resolve(nextLocale);
         if (language != nextLanguage) {
             QCoreApplication::removeTranslator(&selected);
             if (nextLanguage != "en" && selected.loadCatalog(":/pond/translations/" + nextLanguage + ".json", nextLanguage))
@@ -77,6 +90,13 @@ public:
         language = nextLanguage;
         locale = nextLocale;
         notify();
+    }
+    void readSystem() {
+        if (!systemConfiguration) return;
+        if (!systemWatcher.directories().contains("/etc")) systemWatcher.addPath("/etc");
+        if (QFile::exists("/etc/locale.conf") && !systemWatcher.files().contains("/etc/locale.conf"))
+            systemWatcher.addPath("/etc/locale.conf");
+        apply("system");
     }
     void rearm() {
         if (!user) {
@@ -150,9 +170,12 @@ QVariantList Localization::availableLanguages() const {
     }
     return result;
 }
-void Localization::useUserPreferences() { m_state->user = true; m_state->read(); }
+void Localization::useUserPreferences() { m_state->systemConfiguration = false; m_state->user = true; m_state->read(); }
+void Localization::useSystemConfiguration() {
+    m_state->user = false; m_state->systemConfiguration = true; m_state->rearm(); m_state->readSystem();
+}
 void Localization::useSystemLocale() {
-    m_state->user = false; m_state->rearm(); m_state->apply("system");
+    m_state->user = false; m_state->systemConfiguration = false; m_state->rearm(); m_state->apply("system");
 }
 bool Localization::setPreference(const QString &language) { return m_state->save(language); }
 QString Localization::timeZoneName(const QString &id) const {
