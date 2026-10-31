@@ -9,6 +9,7 @@ import Quickshell.Io
 Singleton {
   id: root
   property string expandedSection: ""
+  property string barLayout: "bottom"
   property string wallpaperMode: "dynamic"
   property string wallpaperPath: ""
   property string wallpaperUrl: ""
@@ -17,7 +18,9 @@ Singleton {
   property real pendingBrightness: -1
   property string pendingBrightnessOutput: ""
   property bool draggingBrightness: false
-  property string error: ""
+  property string errorCode: ""
+  property var errorParameters: []
+  readonly property string error: errorCode ? errorParameters.reduce((text, parameter) => text.includes("%1") ? text.arg(parameter) : text, qsTrId(errorCode)) : ""
   signal keyboardBrightnessChanged(string outputName, real value)
   readonly property bool pickingWallpaper: picker.running
   readonly property bool busy: action.running
@@ -26,7 +29,7 @@ Singleton {
   readonly property string wallpaperName: wallpaperPath.split("/").pop() || ""
 
   onActiveChanged: {
-    if (active) { expandedSection = ""; error = ""; settleDelay.restart(); }
+    if (active) { expandedSection = ""; errorCode = ""; settleDelay.restart(); }
     else settleDelay.stop();
   }
   // DDC/CI brightness reads stall the GPU's display driver for a few hundred
@@ -51,6 +54,19 @@ Singleton {
       } catch(e) { console.warn("Appearance wallpaper:", e); }
     }
   }
+  FileView {
+    id: layoutFile
+    path: StandardPaths.writableLocation(StandardPaths.ConfigLocation) + "/pond-interface/layout.json"
+    printErrors: false
+    watchChanges: true
+    onFileChanged: reload()
+    onLoaded: {
+      try {
+        const state = JSON.parse(text());
+        root.barLayout = state.barLayout === "sidebar" ? "sidebar" : "bottom";
+      } catch(e) { console.warn("Appearance layout:", e); }
+    }
+  }
   Process {
     id: query
     property string outputName
@@ -60,18 +76,18 @@ Singleton {
         try {
           const result = JSON.parse(text);
           if (query.outputName !== Settings.State.outputName) return;
-          if (result.error) { root.error = result.error; return; }
+          if (result.error) { root.errorCode = result.error; errorParameters = result.errorParameters || []; return; }
           root.display = result;
           if (!root.draggingBrightness && root.pendingBrightness < 0 && !brightnessWriter.running && result.brightness !== null)
             root.brightness = result.brightness;
-        } catch(e) { root.error = "Could not read display settings"; }
+        } catch(e) { root.errorCode = "pond.could_not_read_display_settings"; }
       }
     }
   }
   Process {
     id: action
     stdout: StdioCollector {
-      onStreamFinished: root.receive(text, "Could not apply appearance settings")
+      onStreamFinished: root.receive(text, "pond.could_not_apply_appearance_settings")
     }
     onExited: root.refresh()
   }
@@ -85,14 +101,14 @@ Singleton {
     id: picker
     command: ["python3", Quickshell.shellDir + "/settings/appearance/control.py", "pick-wallpaper"]
     stdout: StdioCollector {
-      onStreamFinished: root.receive(text, "Could not open the image picker")
+      onStreamFinished: root.receive(text, "pond.could_not_open_the_image_picker")
     }
   }
   Process {
     id: brightnessWriter
     property string outputName
     stdout: StdioCollector {
-      onStreamFinished: root.receive(text, "Could not change brightness")
+      onStreamFinished: root.receive(text, "pond.could_not_change_brightness")
     }
     onExited: (exitCode, exitStatus) => {
       if (exitCode !== 0 && outputName === root.display.output)
@@ -106,10 +122,11 @@ Singleton {
   function receive(text, failure) {
     try {
       const result = JSON.parse(text);
-      if (result.error) error = result.error;
+      if (result.error) errorCode = result.error; errorParameters = result.errorParameters || [];
       if (result.theme) Shell.Theme.reload();
       if (result.mode) wallpaperFile.reload();
-    } catch (exception) { error = failure; }
+      if (result.barLayout) layoutFile.reload();
+    } catch (exception) { errorCode = failure; }
   }
   function refresh() {
     if (query.running || brightnessWriter.running || draggingBrightness || !Settings.State.outputName) return;
@@ -129,15 +146,18 @@ Singleton {
   function toggleSection(section) { expandedSection = expandedSection === section ? "" : section; }
   function apply(args) {
     if (action.running) return;
-    error = "";
+    errorCode = "";
     action.command = ["python3", Quickshell.shellDir + "/settings/appearance/control.py"].concat(args);
     action.running = true;
   }
   function selectTheme(theme) {
     apply(["theme", theme]);
   }
+  function selectBarLayout(name) {
+    apply(["layout", name]);
+  }
   function selectDynamic() { apply(["wallpaper", "dynamic"]); }
-  function pickWallpaper() { if (!picker.running) { error = ""; picker.running = true; } }
+  function pickWallpaper() { if (!picker.running) { errorCode = ""; picker.running = true; } }
   function setBrightness(value) {
     brightness = Math.max(0.01, Math.min(1, value));
     pendingBrightness = brightness;
@@ -146,7 +166,7 @@ Singleton {
   }
   function flushBrightness() {
     if (brightnessWriter.running || pendingBrightness < 0) return;
-    error = "";
+    errorCode = "";
     brightnessWriter.outputName = pendingBrightnessOutput;
     brightnessWriter.command = ["python3", Quickshell.shellDir + "/settings/appearance/control.py", "brightness",
         pendingBrightnessOutput, String(pendingBrightness), cachedDevice(pendingBrightnessOutput)];

@@ -1,3 +1,4 @@
+import Pond.Localization
 import QtQuick
 import Quickshell
 import ".." as Shell
@@ -7,15 +8,21 @@ Shell.Card {
   id: root
 
   property real collapseProgress: 0
+  // Set by the bottom bar: collapse sideways into a compact pill instead of
+  // stacking the date and time in a narrow column.
+  property bool horizontal: false
   property date previewTime: systemClock.date
   signal clicked
   signal batteryClicked
   readonly property bool battery: Battery.State.present
   readonly property bool low: Battery.State.low
+  readonly property real expandedHeight: battery ? (low ? 115 : 75)
+      : Shell.Theme.sidebarTimeExpandedHeight
+  readonly property real collapsedHorizontalWidth: battery ? 132 : 100
   readonly property color batteryColor: Battery.State.charging ? "#CBE25B"
       : low ? Battery.State.lowColor : Shell.Theme.sidebarV3Foreground
   Accessible.role: Accessible.Button
-  Accessible.name: "Open calendar"
+  Accessible.name: qsTrId("pond.open_calendar")
   Accessible.onPressAction: clicked()
 
   MouseArea {
@@ -25,9 +32,11 @@ Shell.Card {
   }
 
   implicitWidth: Shell.Theme.lerp(Shell.Theme.sidebarCardExpandedWidth,
-      Shell.Theme.sidebarCardCollapsedWidth, Shell.Theme.collapseWidth(collapseProgress))
-  implicitHeight: Shell.Theme.lerp(battery ? (low ? 115 : 75) : Shell.Theme.sidebarTimeExpandedHeight,
-      battery ? 155 : 113, Shell.Theme.collapseHeight(collapseProgress))
+      horizontal ? collapsedHorizontalWidth : Shell.Theme.sidebarCardCollapsedWidth,
+      Shell.Theme.collapseWidth(collapseProgress))
+  implicitHeight: Shell.Theme.lerp(expandedHeight,
+      horizontal ? Shell.Theme.sidebarCardCollapsedWidth : battery ? 155 : 113,
+      Shell.Theme.collapseHeight(collapseProgress))
   radius: Shell.Theme.lerp(12, Shell.Theme.sidebarCardRadius, Shell.Theme.collapseWidth(collapseProgress))
   color: Shell.Theme.daylight
       ? (cardHovered && !battery ? Shell.Theme.sidebarCardHoverFill : Shell.Theme.sidebarCardFill)
@@ -72,7 +81,7 @@ Shell.Card {
       y: 8
       height: 42
       // An unpadded hour leaves room for AM/PM beside every possible time.
-      text: Qt.formatTime(root.previewTime, "h:mm AP").split(" ")[0]
+      text: root.previewTime.toLocaleTimeString(Localization.locale, Localization.locale.timeFormat(Locale.ShortFormat).replace(/\s*AP/g, "")).split(" ")[0]
       color: Shell.Theme.sidebarV3Foreground
       font.family: "Advent Pro"
       font.weight: Font.Normal
@@ -89,7 +98,7 @@ Shell.Card {
 
       x: timeText.x + Math.ceil(timeText.implicitWidth - timeText.font.letterSpacing) + 4
       y: 35 + periodMetrics.capitalHeight - baselineOffset
-      text: Qt.formatTime(root.previewTime, "AP")
+      text: Localization.locale.timeFormat(Locale.ShortFormat).includes("AP") ? root.previewTime.toLocaleTimeString(Localization.locale, "AP") : ""
       color: Shell.Theme.sidebarV3Foreground
       opacity: 0.7
       font.family: Shell.Theme.fontFamily
@@ -119,7 +128,7 @@ Shell.Card {
         x: 1
         y: 9 + dateMetrics.capitalHeight - baselineOffset
         width: parent.width - 2
-        text: Qt.formatDateTime(root.previewTime, "ddd")
+        text: root.previewTime.toLocaleDateString(Localization.locale, "ddd")
         color: Shell.Theme.sidebarV3Foreground
         font.family: Shell.Theme.fontFamily
         font.weight: Font.Normal
@@ -214,7 +223,7 @@ Shell.Card {
         id: bannerText
         anchors.horizontalCenter: parent.horizontalCenter
         y: (parent.height - bannerMetrics.capitalHeight) / 2 + bannerMetrics.capitalHeight - baselineOffset
-        text: "Battery at " + Battery.State.level + "%"
+        text: qsTrId("pond.battery_at_1").replace("%1", Battery.State.level)
         color: Battery.State.lowColor
         font.family: Shell.Theme.fontFamily
         font.weight: Font.Medium
@@ -233,9 +242,95 @@ Shell.Card {
       cursorShape: Qt.PointingHandCursor
       onClicked: root.batteryClicked()
       Accessible.role: Accessible.Button
-      Accessible.name: "Open battery"
+      Accessible.name: qsTrId("pond.open_battery")
       Accessible.description: Battery.State.description
       Accessible.onPressAction: root.batteryClicked()
+    }
+  }
+
+  Item {
+    id: horizontalCollapsedContent
+    width: root.collapsedHorizontalWidth
+    height: Shell.Theme.sidebarCardCollapsedWidth
+    visible: root.horizontal && root.collapsedProgress > 0.001
+    opacity: Shell.Theme.ramp(root.collapsedProgress, 0.28, 0.56)
+
+    Text {
+      x: 0
+      anchors.verticalCenter: parent.verticalCenter
+      width: Shell.Theme.sidebarCardCollapsedWidth
+      text: root.previewTime.toLocaleTimeString(Localization.locale,
+          Localization.locale.timeFormat(Locale.ShortFormat).replace(/\s*AP/g, "")).split(" ")[0]
+      color: Shell.Theme.sidebarV3Foreground
+      font.family: Shell.Theme.plexFontFamily
+      font.weight: Font.Normal
+      font.pixelSize: 13
+      horizontalAlignment: Text.AlignHCenter
+    }
+
+    Rectangle {
+      x: Shell.Theme.sidebarCardCollapsedWidth
+      y: 8
+      width: 1
+      height: 32
+      color: Shell.Theme.sidebarV3Divider
+    }
+
+    Text {
+      x: Shell.Theme.sidebarCardCollapsedWidth + 1
+      y: 8
+      width: Shell.Theme.sidebarCardCollapsedWidth
+      height: 16
+      text: root.previewTime.toLocaleDateString(Localization.locale, "ddd").slice(0, 2).toUpperCase()
+      color: Shell.Theme.sidebarV3Foreground
+      opacity: 0.5
+      font.family: Shell.Theme.plexFontFamily
+      font.weight: Font.Normal
+      font.pixelSize: 13
+      horizontalAlignment: Text.AlignHCenter
+      verticalAlignment: Text.AlignVCenter
+    }
+
+    Text {
+      x: Shell.Theme.sidebarCardCollapsedWidth + 1
+      y: 24
+      width: Shell.Theme.sidebarCardCollapsedWidth
+      height: 16
+      text: Qt.formatDate(root.previewTime, "dd")
+      color: Shell.Theme.sidebarV3Foreground
+      font.family: Shell.Theme.plexFontFamily
+      font.weight: Font.Normal
+      font.pixelSize: 13
+      horizontalAlignment: Text.AlignHCenter
+      verticalAlignment: Text.AlignVCenter
+    }
+
+    Rectangle {
+      x: 100
+      y: 8
+      width: 32
+      height: 32
+      radius: 8
+      visible: root.battery
+      color: root.low ? Qt.alpha(Battery.State.lowColor, 0.1) : "transparent"
+
+      Battery.Indicator {
+        x: 8
+        y: 8
+        percentage: Battery.State.percentage
+        charging: Battery.State.charging
+        color: root.low || Battery.State.charging ? root.batteryColor : "white"
+      }
+
+      MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: root.batteryClicked()
+        Accessible.role: Accessible.Button
+        Accessible.name: qsTrId("pond.open_battery")
+        Accessible.description: Battery.State.description
+        Accessible.onPressAction: root.batteryClicked()
+      }
     }
   }
 
@@ -243,7 +338,7 @@ Shell.Card {
     id: collapsedContent
     width: Shell.Theme.sidebarCardCollapsedWidth
     height: parent.height
-    visible: root.collapsedProgress > 0.001
+    visible: !root.horizontal && root.collapsedProgress > 0.001
 
     readonly property real topPadding: 16
     readonly property real lineStep: 13
@@ -260,7 +355,7 @@ Shell.Card {
       x: 0
       y: collapsedContent.topPadding + compactMetrics.capitalHeight - baselineOffset
       width: parent.width
-      text: Qt.formatTime(root.previewTime, "hh AP").split(" ")[0]
+      text: root.previewTime.toLocaleTimeString(Localization.locale, Localization.locale.timeFormat(Locale.ShortFormat).includes("AP") ? "hh" : "HH").split(" ")[0]
       color: Shell.Theme.sidebarV3Foreground
       opacity: Shell.Theme.ramp(root.collapsedProgress, 0.00, 0.32)
       font.family: Shell.Theme.plexFontFamily
@@ -286,7 +381,7 @@ Shell.Card {
       x: 0
       y: collapsedContent.topPadding + 2 * collapsedContent.lineStep + compactMetrics.capitalHeight - baselineOffset
       width: parent.width
-      text: Qt.formatTime(root.previewTime, "AP")
+      text: Localization.locale.timeFormat(Locale.ShortFormat).includes("AP") ? root.previewTime.toLocaleTimeString(Localization.locale, "AP") : ""
       color: Shell.Theme.sidebarV3Foreground
       opacity: 0.3 * Shell.Theme.ramp(root.collapsedProgress, 0.24, 0.56)
       font.family: Shell.Theme.plexFontFamily
@@ -309,7 +404,7 @@ Shell.Card {
       x: 0
       y: collapsedContent.dateTop + compactMetrics.capitalHeight - baselineOffset
       width: parent.width
-      text: Qt.formatDateTime(root.previewTime, "ddd").slice(0, 2).toUpperCase()
+      text: root.previewTime.toLocaleDateString(Localization.locale, "ddd").slice(0, 2).toUpperCase()
       color: Shell.Theme.sidebarV3Foreground
       opacity: 0.5 * Shell.Theme.ramp(root.collapsedProgress, 0.48, 0.80)
       font.family: Shell.Theme.plexFontFamily
@@ -362,7 +457,7 @@ Shell.Card {
         cursorShape: Qt.PointingHandCursor
         onClicked: root.batteryClicked()
         Accessible.role: Accessible.Button
-        Accessible.name: "Open battery"
+        Accessible.name: qsTrId("pond.open_battery")
         Accessible.description: Battery.State.description
         Accessible.onPressAction: root.batteryClicked()
       }

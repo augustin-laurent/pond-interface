@@ -6,13 +6,22 @@ import ".." as Shell
 
 // Collapsed-sidebar arrival surface. Its left edge tracks the animated
 // sidebar edge, so it never temporarily overlaps and then jumps with the
-// compositor's work-area change.
+// compositor's work-area change. In the bottom layout it instead rises
+// from just above the bar, aligned with the notification center.
 PanelWindow {
   id: root
 
   required property var bar
 
   readonly property string outputName: bar && bar.screen ? bar.screen.name : ""
+  readonly property bool bottomBar: bar ? bar.barLayout === "bottom" : false
+  // Bottom-layout arrival spot: above the bar's notification card, matching
+  // the notification center's positioning.
+  readonly property real toastLeft: !bottomBar || !bar ? 0 : Math.max(
+      Notifications.Style.desktopMargin,
+      Math.min(bar.notificationCardCenterX - Notifications.Style.interactiveWidth / 2,
+               screen.width - Notifications.Style.desktopMargin
+                   - Notifications.Style.interactiveWidth))
   readonly property bool outputMatches: Notifications.State.transientOutputName === ""
       || Notifications.State.transientOutputName === outputName
   readonly property bool requested: outputMatches
@@ -21,7 +30,7 @@ PanelWindow {
   property real reveal: requested ? 1 : 0
   property var displayedNotification: ({})
 
-  screen: bar.screen
+  screen: bar ? bar.screen : null
   visible: requested || reveal > 0.001
   color: "transparent"
   implicitWidth: Notifications.Style.interactiveWidth
@@ -29,12 +38,17 @@ PanelWindow {
 
   anchors {
     left: true
-    top: true
+    top: !root.bottomBar
+    bottom: root.bottomBar
   }
   margins {
-    left: Math.round(Shell.Theme.sidebarOuterMargin + bar.cardWidth
+    left: root.bottomBar ? root.toastLeft
+        : Math.round(Shell.Theme.sidebarOuterMargin + bar.cardWidth
                      + Notifications.Style.desktopMargin)
-    top: Notifications.Style.desktopMargin
+    top: root.bottomBar ? 0 : Notifications.Style.desktopMargin
+    bottom: root.bottomBar
+        ? Math.round((bar ? bar.stripHeight : 0) + Notifications.Style.desktopMargin)
+        : 0
   }
 
   WlrLayershell.layer: WlrLayer.Overlay
@@ -59,8 +73,8 @@ PanelWindow {
 
   Notifications.Card {
     id: toastCard
-    x: (1 - root.reveal) * -4
-    y: 0
+    x: root.bottomBar ? 0 : (1 - root.reveal) * -4
+    y: root.bottomBar ? (1 - root.reveal) * 6 : 0
     width: Notifications.Style.interactiveWidth
     height: implicitHeight
     opacity: root.reveal

@@ -11,8 +11,8 @@ PanelWindow {
 
   required property var bar
 
-  screen: bar.screen
-  visible: bar.panelOpen
+  screen: bar ? bar.screen : null
+  visible: bar ? bar.panelOpen : false
   color: "transparent"
 
   anchors {
@@ -30,12 +30,12 @@ PanelWindow {
 
   mask: Region {
     intersection: Intersection.Subtract
-    regions: [root.bar.mask]
+    regions: root.bar ? [root.bar.mask] : []
   }
 
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-    onClicked: root.bar.dismissPanels()
+    onClicked: if (root.bar) root.bar.dismissPanels()
   }
 }

@@ -15,6 +15,8 @@ import Pond.Screenshot as Screenshot
 PanelWindow {
   id: root
   required property bool expanded
+  // Bottom-dock consumers branch on this; the sidebar is the fallback layout.
+  readonly property string barLayout: "sidebar"
   property string popup: ""
   property real collapseProgress: expanded ? 0 : 1
   signal toggleRequested

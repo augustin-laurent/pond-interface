@@ -15,6 +15,7 @@ PanelWindow {
   required property var bar
 
   readonly property string outputName: bar && bar.screen ? bar.screen.name : ""
+  readonly property bool bottomBar: bar ? bar.barLayout === "bottom" : false
   readonly property bool requested: Notifications.State.panelOpen
       && Notifications.State.panelOutputName === outputName
   property real reveal: requested ? 1 : 0
@@ -30,15 +31,24 @@ PanelWindow {
                  + effectiveListHeight,
                  Notifications.Style.panelMaxHeight)
       : effectiveListHeight
-  readonly property real panelLeft: Shell.Theme.sidebarOuterMargin + bar.cardWidth
-      + Notifications.Style.desktopMargin
-  readonly property real panelTop: panelHeight >= Notifications.Style.panelMaxHeight
-      ? Notifications.Style.desktopMargin
-      : Math.max(Notifications.Style.desktopMargin,
-                 Math.min(bar.notificationCardCenterY - panelHeight / 2,
-                          height - Notifications.Style.desktopMargin - panelHeight))
+  readonly property real panelLeft: bottomBar
+      ? Math.max(Notifications.Style.desktopMargin,
+                 Math.min(bar.notificationCardCenterX - Notifications.Style.panelWidth / 2,
+                          width - Notifications.Style.desktopMargin
+                              - Notifications.Style.panelWidth))
+      : Shell.Theme.sidebarOuterMargin + bar.cardWidth
+        + Notifications.Style.desktopMargin
+  readonly property real panelTop: bottomBar
+      ? Math.max(Notifications.Style.desktopMargin,
+                 height - (bar ? bar.stripHeight : 0)
+                     - Notifications.Style.desktopMargin - panelHeight)
+      : panelHeight >= Notifications.Style.panelMaxHeight
+        ? Notifications.Style.desktopMargin
+        : Math.max(Notifications.Style.desktopMargin,
+                   Math.min(bar.notificationCardCenterY - panelHeight / 2,
+                            height - Notifications.Style.desktopMargin - panelHeight))
 
-  screen: bar.screen
+  screen: bar ? bar.screen : null
   visible: requested || reveal > 0.001
   color: "transparent"
 
@@ -56,7 +66,7 @@ PanelWindow {
 
   mask: Region {
     intersection: Intersection.Subtract
-    regions: [root.bar.mask]
+    regions: root.bar ? [root.bar.mask] : []
   }
 
   Behavior on reveal { Shell.Motion { duration: Notifications.Style.panelDuration } }
@@ -96,7 +106,7 @@ PanelWindow {
     x: panelBackground.x + Notifications.Style.contentPadding
     y: panelBackground.y + Notifications.Style.contentPadding
     height: 28
-    text: root.itemCount + " Notifications"
+    text: qsTrId("notifications.count", root.itemCount)
     color: Notifications.Style.foreground
     font.family: Shell.Theme.titleFontFamily
     font.weight: Font.Normal
@@ -113,7 +123,7 @@ PanelWindow {
        - Notifications.Style.contentPadding - width
     y: panelBackground.y + 21
     height: 19
-    text: "Clear all"
+    text: qsTrId("pond.clear_all")
     color: Notifications.Style.foreground
     opacity: root.reveal * hoverOpacity
     font.family: Shell.Theme.fontFamily

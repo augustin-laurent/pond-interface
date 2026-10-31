@@ -8,9 +8,10 @@ import ".." as Shell
 PanelWindow {
   id: root
   required property var bar
+  readonly property bool bottomBar: bar ? bar.barLayout === "bottom" : false
 
-  screen: bar.screen
-  visible: bar.popup === "battery"
+  screen: bar ? bar.screen : null
+  visible: bar ? bar.popup === "battery" : false
   color: "transparent"
   anchors { left: true; right: true; top: true; bottom: true }
   WlrLayershell.layer: WlrLayer.Overlay
@@ -20,7 +21,7 @@ PanelWindow {
 
   mask: Region {
     intersection: Intersection.Subtract
-    regions: [root.bar.mask]
+    regions: root.bar ? [root.bar.mask] : []
   }
 
   onVisibleChanged: if (visible) card.forceActiveFocus();
@@ -28,13 +29,19 @@ PanelWindow {
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-    onClicked: root.bar.popup = ""
+    onClicked: if (root.bar) root.bar.popup = ""
   }
 
   Battery.Card {
     id: card
-    x: Shell.Theme.sidebarOuterMargin + root.bar.cardWidth + 10
-    y: Shell.Theme.sidebarOuterMargin
-    Keys.onEscapePressed: root.bar.popup = ""
+    x: root.bottomBar && root.bar
+        ? Math.max(Shell.Theme.sidebarOuterMargin,
+                   Math.min(root.bar.clockCenterX - card.width / 2,
+                            width - Shell.Theme.sidebarOuterMargin - card.width))
+        : root.bar ? Shell.Theme.sidebarOuterMargin + root.bar.cardWidth + 10 : 0
+    y: root.bottomBar
+        ? root.height - root.bar.stripHeight - 10 - card.height
+        : Shell.Theme.sidebarOuterMargin
+    Keys.onEscapePressed: if (root.bar) root.bar.popup = ""
   }
 }

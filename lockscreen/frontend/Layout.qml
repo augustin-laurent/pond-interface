@@ -1,4 +1,5 @@
 pragma ComponentBehavior: Bound
+import Pond.Localization
 import QtQuick
 import QtQuick.Window
 import QtQuick.VectorImage
@@ -159,7 +160,7 @@ Item {
                 x: (canvas.width - width) / 2
                 y: 238 - (baselineOffset - tooltipMetrics.capitalHeight)
                 width: 87
-                text: "Enter\nPassword"
+                text: qsTrId("lockscreen.password_prompt")
                 horizontalAlignment: Text.AlignHCenter
                 color: theme.text
                 font.family: theme.displayFont
@@ -199,7 +200,7 @@ Item {
                 Behavior on opacity { NumberAnimation { duration: 150 } }
                 x: (80 + (canvas.width - 400) / 2) / 2 - 19 - width / 2
                 y: 506
-                text: Qt.formatDate(root.now, "ddd, MMM d")
+                text: root.now.toLocaleDateString(Localization.locale, Locale.ShortFormat)
                 color: theme.text
                 font.family: theme.displayFont
                 font.styleName: "Book"
@@ -213,7 +214,7 @@ Item {
                 Behavior on opacity { NumberAnimation { duration: 150 } }
                 x: ((canvas.width + 400) / 2 + canvas.width - 80) / 2 - 24 - width / 2
                 y: 506
-                text: Qt.formatTime(root.now, "h:mm AP")
+                text: root.now.toLocaleTimeString(Localization.locale, Locale.ShortFormat)
                 color: theme.text
                 font.family: theme.displayFont
                 font.styleName: "Book"
@@ -283,7 +284,7 @@ Item {
                 backgroundSize: Qt.size(canvas.width, canvas.height)
                 x: 10
                 y: 1026
-                text: "Pre-release version"
+                text: qsTrId("pond.pre_release_version")
                 font.family: theme.displayFont
                 font.styleName: "Regular"
                 font.pixelSize: 39
@@ -297,7 +298,7 @@ Item {
                 x: canvas.width - 240
                 y: 1041
                 width: 228
-                text: "Some features may not work as expected. Please report any issues or bugs."
+                text: qsTrId("pond.some_features_may_not_work_as_expected_please_report_any_issues_or_bugs")
                 font.family: theme.uiFont
                 font.styleName: "Medium"
                 font.pixelSize: 11

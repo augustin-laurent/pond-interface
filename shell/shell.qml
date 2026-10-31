@@ -1,4 +1,5 @@
 //@ pragma Env QSG_RENDER_LOOP = threaded
+import Pond.Localization
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -15,6 +16,7 @@ import Pond.System
 ShellRoot {
   id: root
   property bool expanded: true
+  Component.onCompleted: Localization.useUserPreferences()
 
   Shortcuts {}
 
@@ -86,6 +88,7 @@ ShellRoot {
   Variants {
     model: Quickshell.screens
     delegate: Scope {
+      id: screenScope
       required property var modelData
       Wallpaper.Window {
         screen: modelData
@@ -93,18 +96,33 @@ ShellRoot {
         dimmed: Theme.daylight
         imageSource: Appearance.State.wallpaperUrl
       }
-      Sidebar {
-        id: sidebar
-        screen: modelData
-        expanded: root.expanded
-        onToggleRequested: root.expanded = !root.expanded
+      Loader {
+        id: barArea
+        sourceComponent:
+            Appearance.State.barLayout === "bottom" ? bottomBar : sideBar
       }
-      Notifications.ToastWindow { id: toast; bar: sidebar }
-      Notifications.CenterWindow { bar: sidebar }
-      Calendar.Window { bar: sidebar }
-      Battery.Window { bar: sidebar }
-      Battery.Notification { bar: sidebar; above: toast }
-      PanelDismissWindow { bar: sidebar }
+      Component {
+        id: bottomBar
+        Bar {
+          screen: screenScope.modelData
+          expanded: root.expanded
+          onToggleRequested: root.expanded = !root.expanded
+        }
+      }
+      Component {
+        id: sideBar
+        Sidebar {
+          screen: screenScope.modelData
+          expanded: root.expanded
+          onToggleRequested: root.expanded = !root.expanded
+        }
+      }
+      Notifications.ToastWindow { id: toast; bar: barArea.item }
+      Notifications.CenterWindow { bar: barArea.item }
+      Calendar.Window { bar: barArea.item }
+      Battery.Window { bar: barArea.item }
+      Battery.Notification { bar: barArea.item; above: toast }
+      PanelDismissWindow { bar: barArea.item }
       Settings.Window { menuScreen: modelData }
     }
   }
