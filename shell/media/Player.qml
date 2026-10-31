@@ -10,13 +10,15 @@ Shell.Card {
   // Set by the bottom bar: the collapsed card becomes a wide now-playing pill
   // instead of a square tile with vertically stacked controls.
   property bool horizontal: false
+  property real rowHeight: 48
   readonly property bool horizontalCollapsed:
       horizontal && collapseProgress >= 0.56
   readonly property real layoutProgress:
       Shell.Theme.collapseWidth(collapseProgress)
   readonly property bool hasPlayer: Media.State.hasPlayer
   readonly property bool revealed: hasPlayer && (hover.hovered || pointer.pressed)
-  property real expandedTargetHeight: hasPlayer ? (revealed ? 92 : 64) : 0
+  property real expandedTargetHeight: hasPlayer
+      ? (horizontal ? rowHeight + (revealed ? 28 : 0) : revealed ? 92 : 64) : 0
   property real collapsedTargetHeight: hasPlayer
       ? (pointer.pressed ? 126 : (revealed ? 116 : 48)) : 0
   readonly property url playPauseIconSource: Qt.resolvedUrl(
@@ -34,7 +36,7 @@ Shell.Card {
       horizontal ? Shell.Theme.sidebarCardExpandedWidth
                  : Shell.Theme.sidebarCardCollapsedWidth, layoutProgress)
   height: Shell.Theme.lerp(expandedTargetHeight,
-      horizontal ? (hasPlayer ? 48 : 0) : collapsedTargetHeight,
+      horizontal ? (hasPlayer ? rowHeight : 0) : collapsedTargetHeight,
       Shell.Theme.collapseHeight(collapseProgress))
   visible: height > 0
   classicColor: revealed ? Shell.Theme.mediaHoverBackground : Shell.Theme.sidebarV3Background
@@ -70,7 +72,7 @@ Shell.Card {
     AlbumCover {
       id: artwork
       x: Shell.Theme.lerp(12, 8, root.layoutProgress)
-      y: Shell.Theme.lerp(12, pointer.pressed ? 12 : 8, Shell.Theme.collapseHeight(root.collapseProgress))
+      y: Shell.Theme.lerp(root.horizontal ? (root.rowHeight - 40) / 2 : 12, pointer.pressed ? 12 : 8, Shell.Theme.collapseHeight(root.collapseProgress))
       artSize: Shell.Theme.lerp(40, 32, root.layoutProgress)
       Behavior on y {
         enabled: root.collapseProgress === 1

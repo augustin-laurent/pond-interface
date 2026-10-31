@@ -23,7 +23,7 @@ Settings.Modal {
     Settings.Field {
       objectName: "systemLock"
       width: parent.width; navigation: true
-      title: "Lock & sleep"; value: System.Idle.label(System.Idle.current.lock)
+      title: qsTrId("settings.lock_sleep"); value: System.Idle.label(System.Idle.current.lock)
       onClicked: Settings.State.openPage("lock")
     }
     Settings.Field {

@@ -14,7 +14,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    radius: width / 2
+    radius: width / 4
     antialiasing: true
     color: pointer.containsMouse ? Shell.Theme.workspaceControlHover : "transparent"
     border.width: pointer.containsMouse ? 0 : Shell.Theme.sidebarStrokeWidth

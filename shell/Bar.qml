@@ -25,13 +25,15 @@ PanelWindow {
   readonly property real cardWidth: Theme.lerp(Theme.sidebarCardExpandedWidth,
       Theme.sidebarCardCollapsedWidth, Theme.collapseWidth(collapseProgress))
   readonly property string barLayout: "bottom"
+  readonly property real moduleHeight: timeCard.height
 
-  // Reserved strip: outer margin above and below the tallest visible row.
   readonly property real stripHeight: Theme.sidebarOuterMargin * 2
       + Math.max(mainRow.height, auxRow.height)
   // Window coordinate of the strip's top edge (the window is full-width).
   readonly property real stripTop: height - stripHeight
   readonly property real clockCenterX: mainRow.x + timeCard.x + timeCard.width / 2
+  readonly property real clockTop: mainRow.y + timeCard.y
+  readonly property real notificationCardTop: mainRow.y + notificationCard.y
   readonly property real notificationCardCenterX: mainRow.x + notificationCard.x
       + notificationCard.width / 2
   // Compatibility value for the sidebar-mode notification center; unused here.
@@ -67,6 +69,7 @@ PanelWindow {
   function togglePopup(name) {
     dismissPanels();
     Notifications.State.closePanel();
+    Settings.State.close();
     popup = popup === name ? "" : name;
   }
 
@@ -90,7 +93,9 @@ PanelWindow {
   }
   Connections {
     target: Notifications.State
-    function onPanelOpenChanged() { if (Notifications.State.panelOpen) root.popup = ""; }
+    function onPanelOpenChanged() {
+      if (Notifications.State.panelOpen) { root.dismissPanels(); root.popup = ""; }
+    }
   }
   Connections {
     target: Bluetooth.State
@@ -122,34 +127,14 @@ PanelWindow {
   }
   // Only the input area tracks the strip; everything else is click-through.
   mask: Region {
-    width: root.width
-    height: root.height
-    // The window reserves room for panels above the strip; without one open,
-    // everything above the strip passes clicks through to the background.
-    Region {
-      y: 0
-      width: root.width
-      height: root.panelOpen && root.activePanel
-          ? Math.max(0, root.activePanel.y)
-          : Math.max(0, root.height - stripHeight)
-      intersection: Intersection.Subtract
-    }
-    // Let the background receive clicks between the two card groups.
-    Region {
-      x: Math.ceil(mainRow.x + mainRow.width)
-      width: Math.max(0, Math.floor(auxRow.x) - x)
-      y: Math.max(0, root.height - stripHeight)
-      height: stripHeight
-      intersection: Intersection.Subtract
-    }
-    // Region.item can retain the opening animation's scaled bounds and leave
-    // the close button outside the input mask. Track the panel bounds directly.
-    Region {
-      x: root.activePanel ? root.activePanel.x : 0
-      y: root.activePanel ? root.activePanel.y : 0
-      width: root.activePanel ? root.activePanel.width : 0
-      height: root.activePanel ? root.activePanel.height : 0
-    }
+    regions: [
+      Region { width: workspacesCard.dragSession.active ? root.width : 0; height: workspacesCard.dragSession.active ? root.height : 0 },
+      Region { item: mainRow },
+      Region { item: auxRow },
+      Region { x: wifiPanel.x; y: wifiPanel.y; width: wifiPanel.visible ? wifiPanel.width : 0; height: wifiPanel.visible ? wifiPanel.height : 0 },
+      Region { x: audioPanel.x; y: audioPanel.y; width: audioPanel.visible ? audioPanel.width : 0; height: audioPanel.visible ? audioPanel.height : 0 },
+      Region { x: bluetoothPanel.x; y: bluetoothPanel.y; width: bluetoothPanel.visible ? bluetoothPanel.width : 0; height: bluetoothPanel.visible ? bluetoothPanel.height : 0 }
+    ]
   }
   anchors { left: true; right: true; bottom: true }
   WlrLayershell.layer: WlrLayer.Top
@@ -157,17 +142,9 @@ PanelWindow {
   WlrLayershell.keyboardFocus: workspacesCard.dragSession.active
       ? WlrKeyboardFocus.Exclusive : panelOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
   WlrLayershell.exclusionMode: ExclusionMode.Normal
-  exclusiveZone: stripHeight
+  exclusiveZone: 48 + Theme.sidebarOuterMargin * 2
   Behavior on collapseProgress { Motion {} }
-
-  // The window is exactly the strip unless a panel opens above it. Keeping the
-  // surface this small means the collapsed bar is a slim bottom dock rather
-  // than a full-height transparent layer.
-  implicitHeight: Math.ceil(Math.max(
-      stripHeight,
-      wifiPanel.visible ? stripHeight + Theme.sidebarCardGap + wifiPanel.height + 67 : 0,
-      audioPanel.visible ? stripHeight + Theme.sidebarCardGap + audioPanel.height + 67 : 0,
-      bluetoothPanel.visible ? stripHeight + Theme.sidebarCardGap + bluetoothPanel.height + 67 : 0))
+  implicitHeight: screen ? screen.height : 0
 
   Row {
     id: mainRow
@@ -186,15 +163,17 @@ PanelWindow {
       onBatteryClicked: root.togglePopup("battery")
     }
 
-    Minimap.Map {
+    Minimap.HorizontalMap {
       id: workspacesCard
-      horizontal: true
+      rowHeight: root.moduleHeight
       screen: root.screen
       collapseProgress: root.collapseProgress
-      // The map grows in rows, which stack vertically inside the strip; cap it
-      // to half the screen minus the reserved strip.
-      maximumHeight: Math.max(64, root.screen.height * 0.5 - root.stripHeight)
-      onFocusRequested: index => NiriMsg.focusWorkspace(index)
+      maximumWidth: Math.max(48, auxRow.x - Theme.sidebarCardGap - mainRow.x
+          - timeCard.width - (mediaCard.visible ? mediaCard.width + mainRow.spacing : 0)
+          - notificationCard.width - (installsCard.visible ? installsCard.width + mainRow.spacing : 0)
+          - (keyboardFeedback.visible ? keyboardFeedback.width + mainRow.spacing : 0)
+          - mainRow.spacing * 2)
+      onFocusRequested: (index, workspaceId) => NiriMsg.focusWorkspaceById(workspaceId)
       onWindowRequested: windowId => NiriMsg.focusWindow(windowId)
       onAddRequested: workspaceId => NiriMsg.openLauncher(workspaceId)
       y: parent.height - height
@@ -202,6 +181,7 @@ PanelWindow {
 
     Media.Player {
       id: mediaCard
+      rowHeight: root.moduleHeight
       horizontal: true
       collapseProgress: root.collapseProgress
       y: parent.height - height
@@ -209,6 +189,8 @@ PanelWindow {
 
     Notifications.SidebarCard {
       id: notificationCard
+      horizontal: true
+      rowHeight: root.moduleHeight
       y: parent.height - height
       collapseProgress: root.collapseProgress
       onPanelRequested: { root.dismissPanels(); Notifications.State.togglePanel(root.screen.name); }
@@ -216,6 +198,7 @@ PanelWindow {
 
     Installs.SidebarCard {
       id: installsCard
+      rowHeight: root.moduleHeight
       horizontal: true
       y: parent.height - height
       collapseProgress: root.collapseProgress
@@ -250,7 +233,7 @@ PanelWindow {
     z: 80
     anchors { right: parent.right; bottom: parent.bottom }
     anchors.rightMargin: Theme.sidebarOuterMargin
-    anchors.bottomMargin: root.stripHeight + Theme.sidebarCardGap
+    anchors.bottomMargin: root.height - (auxRow.y + controls.y) + Theme.sidebarCardGap
   }
 
   Audio.Panel {
@@ -258,7 +241,7 @@ PanelWindow {
     z: 80
     anchors { right: parent.right; bottom: parent.bottom }
     anchors.rightMargin: Theme.sidebarOuterMargin
-    anchors.bottomMargin: root.stripHeight + Theme.sidebarCardGap
+    anchors.bottomMargin: root.height - (auxRow.y + controls.y) + Theme.sidebarCardGap
   }
 
   Bluetooth.Panel {
@@ -266,7 +249,7 @@ PanelWindow {
     z: 80
     anchors { right: parent.right; bottom: parent.bottom }
     anchors.rightMargin: Theme.sidebarOuterMargin
-    anchors.bottomMargin: root.stripHeight + Theme.sidebarCardGap
+    anchors.bottomMargin: root.height - (auxRow.y + controls.y) + Theme.sidebarCardGap
   }
 
   Row {
@@ -277,6 +260,7 @@ PanelWindow {
     }
     spacing: Theme.sidebarCardGap
     Screenshot.Preview {
+      expandedHeight: timeCard.expandedHeight
       y: parent.height - height
       outputName: root.screen.name
       collapsed: root.collapseProgress > 0.5
@@ -290,14 +274,17 @@ PanelWindow {
     }
     BottomControls {
       id: controls
+      rowHeight: root.moduleHeight
       horizontal: true
       y: parent.height - height
       collapseProgress: root.collapseProgress
       barHost: root
       wifiOpen: wifiPanel.opened
+      bluetoothOpen: bluetoothPanel.opened
       soundOpen: audioPanel.opened
       settingsOpen: Settings.State.opened && Settings.State.outputName === root.screen.name
       onWifiClicked: root.togglePanel("wifi")
+      onBluetoothClicked: root.togglePanel("bluetooth")
       onSoundClicked: root.togglePanel("audio")
       onSettingsClicked: Settings.State.toggle(root.screen.name)
       onCollapseClicked: root.toggleRequested()

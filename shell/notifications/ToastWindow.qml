@@ -7,7 +7,7 @@ import ".." as Shell
 // Collapsed-sidebar arrival surface. Its left edge tracks the animated
 // sidebar edge, so it never temporarily overlaps and then jumps with the
 // compositor's work-area change. In the bottom layout it instead rises
-// from just above the bar, aligned with the notification center.
+// from just above the clock in the bottom bar.
 PanelWindow {
   id: root
 
@@ -15,18 +15,17 @@ PanelWindow {
 
   readonly property string outputName: bar && bar.screen ? bar.screen.name : ""
   readonly property bool bottomBar: bar ? bar.barLayout === "bottom" : false
-  // Bottom-layout arrival spot: above the bar's notification card, matching
-  // the notification center's positioning.
+  // Keep the notification above the clock and inside the output.
   readonly property real toastLeft: !bottomBar || !bar ? 0 : Math.max(
       Notifications.Style.desktopMargin,
-      Math.min(bar.notificationCardCenterX - Notifications.Style.interactiveWidth / 2,
+      Math.min(bar.clockCenterX - Notifications.Style.interactiveWidth / 2,
                screen.width - Notifications.Style.desktopMargin
                    - Notifications.Style.interactiveWidth))
   readonly property bool outputMatches: Notifications.State.transientOutputName === ""
       || Notifications.State.transientOutputName === outputName
   readonly property bool requested: outputMatches
       && Notifications.State.transientVisible
-      && bar.collapseProgress > 0.42
+
   property real reveal: requested ? 1 : 0
   property var displayedNotification: ({})
 
@@ -47,7 +46,7 @@ PanelWindow {
                      + Notifications.Style.desktopMargin)
     top: root.bottomBar ? 0 : Notifications.Style.desktopMargin
     bottom: root.bottomBar
-        ? Math.round((bar ? bar.stripHeight : 0) + Notifications.Style.desktopMargin)
+        ? Math.round((bar ? bar.height - bar.clockTop : 0) + Notifications.Style.desktopMargin)
         : 0
   }
 

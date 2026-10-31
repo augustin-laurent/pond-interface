@@ -177,7 +177,7 @@ Item {
                 visible: CapsLock.active
                 x: canvas.width / 2 - 199.5 - width / 2
                 y: 433 - (baselineOffset - tooltipMetrics.capitalHeight)
-                text: "CAPS"
+                text: qsTrId("lockscreen.caps_lock_first")
                 color: theme.lavender
                 font: passwordTooltip.font
             }
@@ -188,7 +188,7 @@ Item {
                 visible: CapsLock.active
                 x: canvas.width / 2 + 228 - width
                 y: 433 - (baselineOffset - tooltipMetrics.capitalHeight)
-                text: "LOCK"
+                text: qsTrId("lockscreen.caps_lock_second")
                 color: theme.lavender
                 font: passwordTooltip.font
             }

@@ -9,11 +9,12 @@ Item {
   id: root
   required property string outputName
   property bool collapsed: false
+  property real expandedHeight: 112
   property bool dragging: false
   readonly property bool hasScreenshot: Screenshot.State.imageSource !== ""
       && Screenshot.State.outputName === outputName
   width: collapsed ? 48 : 156
-  height: hasScreenshot ? (collapsed ? 48 : 112) : 0
+  height: hasScreenshot ? (collapsed ? 48 : expandedHeight) : 0
   visible: hasScreenshot
   opacity: dragging ? 0 : 1
 

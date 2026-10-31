@@ -18,7 +18,10 @@ Shell.Card {
   readonly property bool low: Battery.State.low
   readonly property real expandedHeight: battery ? (low ? 115 : 75)
       : Shell.Theme.sidebarTimeExpandedHeight
-  readonly property real collapsedHorizontalWidth: battery ? 132 : 100
+  readonly property real collapsedTimeWidth: Math.max(64, Math.ceil(horizontalTime.implicitWidth) + 24)
+  readonly property real collapsedDateWidth: 40
+  readonly property real collapsedClockWidth: 17 + collapsedTimeWidth + collapsedDateWidth
+  readonly property real collapsedHorizontalWidth: collapsedClockWidth + (battery ? 32 : 0)
   readonly property color batteryColor: Battery.State.charging ? "#CBE25B"
       : low ? Battery.State.lowColor : Shell.Theme.sidebarV3Foreground
   Accessible.role: Accessible.Button
@@ -256,20 +259,21 @@ Shell.Card {
     opacity: Shell.Theme.ramp(root.collapsedProgress, 0.28, 0.56)
 
     Text {
-      x: 0
+      id: horizontalTime
+      x: 8
       anchors.verticalCenter: parent.verticalCenter
-      width: Shell.Theme.sidebarCardCollapsedWidth
+      width: root.collapsedTimeWidth
       text: root.previewTime.toLocaleTimeString(Localization.locale,
           Localization.locale.timeFormat(Locale.ShortFormat).replace(/\s*AP/g, "")).split(" ")[0]
       color: Shell.Theme.sidebarV3Foreground
       font.family: Shell.Theme.plexFontFamily
       font.weight: Font.Normal
-      font.pixelSize: 13
+      font.pixelSize: 14
       horizontalAlignment: Text.AlignHCenter
     }
 
     Rectangle {
-      x: Shell.Theme.sidebarCardCollapsedWidth
+      x: 8 + root.collapsedTimeWidth
       y: 8
       width: 1
       height: 32
@@ -277,9 +281,9 @@ Shell.Card {
     }
 
     Text {
-      x: Shell.Theme.sidebarCardCollapsedWidth + 1
+      x: 9 + root.collapsedTimeWidth
       y: 8
-      width: Shell.Theme.sidebarCardCollapsedWidth
+      width: root.collapsedDateWidth
       height: 16
       text: root.previewTime.toLocaleDateString(Localization.locale, "ddd").slice(0, 2).toUpperCase()
       color: Shell.Theme.sidebarV3Foreground
@@ -292,9 +296,9 @@ Shell.Card {
     }
 
     Text {
-      x: Shell.Theme.sidebarCardCollapsedWidth + 1
+      x: 9 + root.collapsedTimeWidth
       y: 24
-      width: Shell.Theme.sidebarCardCollapsedWidth
+      width: root.collapsedDateWidth
       height: 16
       text: Qt.formatDate(root.previewTime, "dd")
       color: Shell.Theme.sidebarV3Foreground
@@ -306,7 +310,7 @@ Shell.Card {
     }
 
     Rectangle {
-      x: 100
+      x: root.collapsedClockWidth
       y: 8
       width: 32
       height: 32

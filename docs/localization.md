@@ -9,8 +9,11 @@ same installed module instead of repository-relative singleton copies.
 ## Build
 
 Install Qt 6.11+ development packages (Core, Qml, Quick),
-CMake, a C++ compiler, and KF6 NetworkManagerQt. On Arch these include `qt6-base`,
-`qt6-declarative`, `cmake`, and `networkmanager-qt`.
+CMake, a C++ compiler, KF6 NetworkManagerQt, pkg-config, and Wayland client
+development files. On Arch these include `qt6-base`, `qt6-declarative`, `cmake`,
+`networkmanager-qt`, `pkgconf`, and `wayland`.
+The shared `Pond.System` module provides network status, sleep/lock integration,
+and the Caps Lock indicator.
 
 ```sh
 cmake -S . -B build

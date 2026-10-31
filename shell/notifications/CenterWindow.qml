@@ -40,7 +40,7 @@ PanelWindow {
         + Notifications.Style.desktopMargin
   readonly property real panelTop: bottomBar
       ? Math.max(Notifications.Style.desktopMargin,
-                 height - (bar ? bar.stripHeight : 0)
+                 (bar ? bar.notificationCardTop : height)
                      - Notifications.Style.desktopMargin - panelHeight)
       : panelHeight >= Notifications.Style.panelMaxHeight
         ? Notifications.Style.desktopMargin

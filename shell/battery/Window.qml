@@ -40,7 +40,7 @@ PanelWindow {
                             width - Shell.Theme.sidebarOuterMargin - card.width))
         : root.bar ? Shell.Theme.sidebarOuterMargin + root.bar.cardWidth + 10 : 0
     y: root.bottomBar
-        ? root.height - root.bar.stripHeight - 10 - card.height
+        ? Math.max(Shell.Theme.sidebarOuterMargin, root.bar.clockTop - 10 - card.height)
         : Shell.Theme.sidebarOuterMargin
     Keys.onEscapePressed: if (root.bar) root.bar.popup = ""
   }

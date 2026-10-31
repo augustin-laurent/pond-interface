@@ -55,6 +55,7 @@ PanelWindow {
   function togglePopup(name) {
     dismissPanels();
     Notifications.State.closePanel();
+    Settings.State.close();
     popup = popup === name ? "" : name;
   }
 
@@ -78,7 +79,9 @@ PanelWindow {
   }
   Connections {
     target: Notifications.State
-    function onPanelOpenChanged() { if (Notifications.State.panelOpen) root.popup = ""; }
+    function onPanelOpenChanged() {
+      if (Notifications.State.panelOpen) { root.dismissPanels(); root.popup = ""; }
+    }
   }
   Connections {
     target: Bluetooth.State
@@ -105,19 +108,16 @@ PanelWindow {
       notificationCard.blurRegion, installsCard.blurRegion, controls.blurRegion]
   }
   // Keep compositor resizes out of the card animation; only the input area shrinks.
-  implicitWidth: Math.ceil(Math.max(Theme.sidebarOuterMargin + Theme.sidebarCardExpandedWidth + Theme.sidebarFadeWidth,
-      wifiPanel.visible ? panelX + wifiPanel.width + 67 : 0,
-      audioPanel.visible ? panelX + audioPanel.width + 67 : 0,
-      bluetoothPanel.visible ? panelX + bluetoothPanel.width + 67 : 0))
+  implicitWidth: screen ? screen.width : 0
   mask: Region {
-    width: root.panelOpen ? root.implicitWidth : Math.ceil(Theme.sidebarOuterMargin + Math.max(root.cardWidth,
+    width: workspacesCard.dragSession.active ? root.width : root.panelOpen ? Math.ceil(root.panelX + (root.activePanel ? root.activePanel.width : 0) + 67) : Math.ceil(Theme.sidebarOuterMargin + Math.max(root.cardWidth,
         workspacesCard.width, mediaCard.width, controls.width) + 8)
     height: root.height
     // Let the background receive clicks between the card stacks.
     Region {
       y: Math.ceil(mainStack.y + mainStack.height)
       width: root.width
-      height: Math.max(0, Math.floor(bottomStack.y) - y)
+      height: workspacesCard.dragSession.active ? 0 : Math.max(0, Math.floor(bottomStack.y) - y)
       intersection: Intersection.Subtract
     }
     // Region.item can retain the opening animation's scaled bounds and leave
@@ -162,7 +162,7 @@ PanelWindow {
           - timeCard.height - mediaCard.height - notificationCard.height - installsCard.height
           - (keyboardFeedback.visible ? keyboardFeedback.height + Theme.sidebarCardGap : 0)
           - Theme.sidebarCardGap * (2 + (mediaCard.visible ? 1 : 0) + (installsCard.visible ? 1 : 0)))
-      onFocusRequested: index => NiriMsg.focusWorkspace(index)
+      onFocusRequested: (index, workspaceId) => NiriMsg.focusWorkspaceById(workspaceId)
       onWindowRequested: windowId => NiriMsg.focusWindow(windowId)
       onAddRequested: workspaceId => NiriMsg.openLauncher(workspaceId)
     }
@@ -175,6 +175,7 @@ PanelWindow {
     Notifications.SidebarCard {
       id: notificationCard
       width: root.cardWidth
+      inlinePreviews: false
       collapseProgress: root.collapseProgress
       onPanelRequested: { root.dismissPanels(); Notifications.State.togglePanel(root.screen.name); }
     }
@@ -254,9 +255,11 @@ PanelWindow {
       id: controls
       collapseProgress: root.collapseProgress
       wifiOpen: wifiPanel.opened
+      bluetoothOpen: bluetoothPanel.opened
       soundOpen: audioPanel.opened
       settingsOpen: Settings.State.opened && Settings.State.outputName === root.screen.name
       onWifiClicked: root.togglePanel("wifi")
+      onBluetoothClicked: root.togglePanel("bluetooth")
       onSoundClicked: root.togglePanel("audio")
       onSettingsClicked: Settings.State.toggle(root.screen.name)
       onCollapseClicked: root.toggleRequested()

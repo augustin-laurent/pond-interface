@@ -9,17 +9,17 @@ Shell.Card {
   // Set by the bottom bar: collapse into a single 48x48 status tile instead of
   // stacking one row per job.
   property bool horizontal: false
+  property real rowHeight: 48
   readonly property real widthProgress: Shell.Theme.collapseWidth(collapseProgress)
+  readonly property int contentPadding: 4
+  readonly property int jobRowHeight: Shell.Theme.sidebarCardCollapsedWidth - 2 * contentPadding
   readonly property real heightProgress: Shell.Theme.collapseHeight(collapseProgress)
   readonly property bool horizontalCompact: horizontal && collapseProgress >= 0.56
-  readonly property int contentPadding: 4
-  readonly property int rowHeight: Shell.Theme.sidebarCardCollapsedWidth - 2 * contentPadding
   readonly property int count: Installs.State.jobs.count
   implicitWidth: Shell.Theme.lerp(Shell.Theme.sidebarCardExpandedWidth,
       Shell.Theme.sidebarCardCollapsedWidth, widthProgress)
-  implicitHeight: count === 0 ? 0
-      : horizontal ? Shell.Theme.lerp(2 * contentPadding + count * rowHeight, 48, heightProgress)
-      : 2 * contentPadding + count * rowHeight
+  implicitHeight: count === 0 ? 0 : Shell.Theme.lerp(2 * contentPadding + count * jobRowHeight,
+      horizontal ? rowHeight : 2 * contentPadding + count * jobRowHeight, heightProgress)
   visible: count > 0
   radius: Shell.Theme.lerp(12, Shell.Theme.sidebarCardRadius, widthProgress)
 
@@ -39,9 +39,9 @@ Shell.Card {
       readonly property string summary: status === "installed" ? qsTrId("pond.installed")
           : status === "failed" ? qsTrId("pond.failed") : progress < 0 ? qsTrId("pond.installing")
           : qsTrId("pond.installing_1").arg(Math.round(progress * 100))
-      y: root.contentPadding + index * root.rowHeight
+      y: root.contentPadding + index * root.jobRowHeight
       width: root.width
-      height: root.rowHeight
+      height: root.jobRowHeight
       visible: !root.horizontalCompact
       Accessible.role: Accessible.ListItem
       readonly property string displayName: jobId !== "system-update" ? name
@@ -54,7 +54,7 @@ Shell.Card {
       HoverHandler { id: rowHover }
       Item {
         x: root.contentPadding
-        width: Math.max(0, parent.width - root.rowHeight - 2 * root.contentPadding)
+        width: Math.max(0, parent.width - root.jobRowHeight - 2 * root.contentPadding)
         height: parent.height
         opacity: 1 - Shell.Theme.ramp(root.collapseProgress, 0, 0.3)
         HoverFill {
@@ -113,7 +113,7 @@ Shell.Card {
         visible: row.status !== "installing"
         opacity: row.showDismiss ? 1 : 0
         x: parent.width - width - root.contentPadding
-        width: root.rowHeight
+        width: root.jobRowHeight
         height: parent.height
         iconSource: Qt.resolvedUrl("../assets/installs/cross.svg")
         iconWidth: 16
