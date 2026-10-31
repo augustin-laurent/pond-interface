@@ -3,12 +3,15 @@ import Pond.Localization
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import "battery" as Battery
 import "calendar" as Calendar
 import "settings" as Settings
 import "settings/appearance" as Appearance
+import "settings/system" as System
 import "notifications" as Notifications
 import Pond.Wallpaper as Wallpaper
+import Pond.System
 
 ShellRoot {
   id: root
@@ -16,6 +19,39 @@ ShellRoot {
   Component.onCompleted: Localization.useUserPreferences()
 
   Shortcuts {}
+
+  Logind {
+    id: logind
+    sleepInhibited: true
+    onPreparingForSleepChanged: {
+      if (preparingForSleep)
+        sleepLock.running = true;
+      else
+        sleepInhibited = true;
+    }
+    onLockRequested: Quickshell.execDetached(["python3", Quickshell.shellDir + "/settings/session.py", "lock"])
+  }
+
+  Variants {
+    readonly property var commands: ({
+      lock: ["python3", Quickshell.shellDir + "/settings/session.py", "lock"],
+      display: ["niri", "msg", "action", "power-off-monitors"],
+      sleep: ["python3", Quickshell.shellDir + "/settings/session.py", "suspend"]
+    })
+    model: Object.keys(commands).filter(key => System.Idle.current[key] > 0)
+        .map(key => ({timeout: System.Idle.current[key], command: commands[key]}))
+    delegate: IdleMonitor {
+      required property var modelData
+      timeout: modelData.timeout
+      onIsIdleChanged: if (isIdle) Quickshell.execDetached(modelData.command)
+    }
+  }
+
+  Process {
+    id: sleepLock
+    command: ["sh", "-c", "python3 \"$0\" lock; for _ in $(seq 40); do qs -p /usr/share/pond-interface/lockscreen ipc call lockscreen isSecure 2>/dev/null | grep -qx true && exit; sleep 0.1; done", Quickshell.shellDir + "/settings/session.py"]
+    onExited: if (logind.preparingForSleep) logind.sleepInhibited = false
+  }
 
   FileView {
     path: Quickshell.screens.length

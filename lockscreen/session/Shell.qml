@@ -3,7 +3,7 @@ import Pond.Localization
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Pond.WifiStatus
+import Pond.System
 
 ShellRoot {
     id: root

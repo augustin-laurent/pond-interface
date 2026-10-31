@@ -5,6 +5,7 @@ import QtQuick.Window
 import QtQuick.VectorImage
 import "form"
 import Pond.Daylight as Daylight
+import Pond.System
 
 Item {
     id: root
@@ -168,6 +169,28 @@ Item {
                 lineHeightMode: Text.FixedHeight
                 lineHeight: 20
                 FontMetrics { id: tooltipMetrics; font: passwordTooltip.font }
+            }
+
+            Text {
+                renderType: Text.CurveRendering
+                objectName: "capsLockCaps"
+                visible: CapsLock.active
+                x: canvas.width / 2 - 199.5 - width / 2
+                y: 433 - (baselineOffset - tooltipMetrics.capitalHeight)
+                text: "CAPS"
+                color: theme.lavender
+                font: passwordTooltip.font
+            }
+
+            Text {
+                renderType: Text.CurveRendering
+                objectName: "capsLockLock"
+                visible: CapsLock.active
+                x: canvas.width / 2 + 228 - width
+                y: 433 - (baselineOffset - tooltipMetrics.capitalHeight)
+                text: "LOCK"
+                color: theme.lavender
+                font: passwordTooltip.font
             }
 
             Text {

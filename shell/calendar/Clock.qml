@@ -35,7 +35,7 @@ Shell.Card {
       horizontal ? collapsedHorizontalWidth : Shell.Theme.sidebarCardCollapsedWidth,
       Shell.Theme.collapseWidth(collapseProgress))
   implicitHeight: Shell.Theme.lerp(expandedHeight,
-      horizontal ? Shell.Theme.sidebarCardCollapsedWidth : battery ? 147 : 105,
+      horizontal ? Shell.Theme.sidebarCardCollapsedWidth : battery ? 155 : 113,
       Shell.Theme.collapseHeight(collapseProgress))
   radius: Shell.Theme.lerp(12, Shell.Theme.sidebarCardRadius, Shell.Theme.collapseWidth(collapseProgress))
   color: Shell.Theme.daylight
@@ -341,7 +341,10 @@ Shell.Card {
     visible: !root.horizontal && root.collapsedProgress > 0.001
 
     readonly property real topPadding: 16
-    readonly property real lineStep: 11
+    readonly property real lineStep: 13
+    readonly property real dateTop: 75
+    readonly property color dividerColor: Shell.Theme.daylight
+        ? Shell.Theme.sidebarCardOutline : Shell.Theme.sidebarV3Divider
     FontMetrics {
       id: compactMetrics
       font.family: Shell.Theme.plexFontFamily
@@ -389,17 +392,17 @@ Shell.Card {
 
     Rectangle {
       id: compactDivider
-      x: 16
-      y: 58
+      anchors.horizontalCenter: parent.horizontalCenter
+      y: 63 - height / 2
       width: 16
       height: 1
-      color: Shell.Theme.sidebarV3Divider
+      color: collapsedContent.dividerColor
       opacity: Shell.Theme.ramp(root.collapsedProgress, 0.36, 0.68)
     }
 
     Text {
       x: 0
-      y: 71 + compactMetrics.capitalHeight - baselineOffset
+      y: collapsedContent.dateTop + compactMetrics.capitalHeight - baselineOffset
       width: parent.width
       text: root.previewTime.toLocaleDateString(Localization.locale, "ddd").slice(0, 2).toUpperCase()
       color: Shell.Theme.sidebarV3Foreground
@@ -412,7 +415,7 @@ Shell.Card {
 
     Text {
       x: 0
-      y: 71 + collapsedContent.lineStep + compactMetrics.capitalHeight - baselineOffset
+      y: collapsedContent.dateTop + collapsedContent.lineStep + compactMetrics.capitalHeight - baselineOffset
       width: parent.width
       text: Qt.formatDate(root.previewTime, "dd")
       color: Shell.Theme.sidebarV3Foreground
@@ -424,17 +427,17 @@ Shell.Card {
     }
 
     Rectangle {
-      x: 16
-      y: 102
+      anchors.horizontalCenter: parent.horizontalCenter
+      y: 110 - height / 2
       width: 16
       height: 1
       visible: root.battery
-      color: Shell.Theme.sidebarV3Divider
+      color: collapsedContent.dividerColor
     }
 
     Rectangle {
       x: 8
-      y: 107
+      y: 115
       width: 32
       height: 32
       radius: 8

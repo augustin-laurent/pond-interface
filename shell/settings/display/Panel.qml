@@ -37,7 +37,7 @@ Settings.Modal {
     const p = field.mapToItem(root,0,field.height/2);
     dropdownCenter = p.y;
     dropdownField = row.key;
-    Qt.callLater(() => { const menu = dropdownLoader.item as Display.Dropdown; if (menu) menu.forceActiveFocus(); });
+    Qt.callLater(() => { const menu = dropdownLoader.item as Settings.Dropdown; if (menu) menu.forceActiveFocus(); });
   }
   Rectangle {
     id: preview
@@ -169,7 +169,7 @@ Settings.Modal {
       x: root.width - width - 38
       y: Math.max(60,Math.min(root.dropdownCenter - height/2,root.height-height-24))
       sourceComponent: Component {
-        Display.Dropdown {
+        Settings.Dropdown {
           objectName: "displayDropdown"
           maximumHeight: Math.max(56,root.height-84)
           width: root.dropdownField === "scale" ? 226 : 276

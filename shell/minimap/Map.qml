@@ -39,8 +39,8 @@ Shell.Card {
   readonly property real collapsedOpacity:
       collapseProgress >= 0.56 ? 1 : 0
   readonly property int expandedVisibleRowCount: expandedColumn.height > 0
-      ? Math.round((expandedColumn.height + Shell.Theme.workspaceControlGap)
-                   / Shell.Theme.workspaceControlPitch)
+      ? Math.round((expandedColumn.height + Shell.Theme.workspaceRowGap)
+                   / Shell.Theme.workspaceRowPitch)
       : 0
   readonly property int expandedRenderedRowCount: Math.max(
       Shell.Theme.workspaceGridMinimumRows, expandedVisibleRowCount)
@@ -49,9 +49,9 @@ Shell.Card {
       ? Shell.Theme.workspaceGridMinimumHeight
       : Shell.Theme.workspaceContentPadding * 2
         + expandedVisibleRowCount * Shell.Theme.workspaceControlSize
-        + (expandedVisibleRowCount - 1) * Shell.Theme.workspaceControlGap
+        + (expandedVisibleRowCount - 1) * Shell.Theme.workspaceRowGap
   readonly property real collapsedNaturalHeight: collapsedFlow.children.reduce(
-      (height, row) => height + (row.targetHeight ?? 0), 3)
+      (height, row) => height + (row.targetHeight ?? 0), 0)
   readonly property real naturalHeight: Shell.Theme.lerp(
       expandedNaturalHeight, collapsedNaturalHeight,
       Shell.Theme.collapseHeight(collapseProgress))
@@ -87,8 +87,8 @@ Shell.Card {
     if (source.workspaceId === workspaceId)
       return dragSession.rowOffset;
     const target = dragSession.destination?.number ?? source.number;
-    if (number > source.number && number <= target) return -Shell.Theme.workspaceControlPitch;
-    if (number < source.number && number >= target) return Shell.Theme.workspaceControlPitch;
+    if (number > source.number && number <= target) return -Shell.Theme.workspaceRowPitch;
+    if (number < source.number && number >= target) return Shell.Theme.workspaceRowPitch;
     return 0;
   }
 
@@ -104,7 +104,7 @@ Shell.Card {
   width: Shell.Theme.lerp(Shell.Theme.sidebarCardExpandedWidth,
       collapsedHorizontalWidth, widthProgress)
   height: Math.min(maximumHeight, horizontal ? horizontalNaturalHeight : naturalHeight)
-  radius: Shell.Theme.daylight ? 12 : Shell.Theme.sidebarCardRadius
+  radius: Shell.Theme.daylight ? Shell.Theme.lerp(12, Shell.Theme.sidebarCardRadius, widthProgress) : Shell.Theme.sidebarCardRadius
   color: Shell.Theme.daylight
       ? (cardHovered || (dragSession.active && dragSession.windowDrag)
           ? Shell.Theme.sidebarCardHoverFill : Shell.Theme.sidebarCardFill)
@@ -137,7 +137,7 @@ Shell.Card {
       x: 0
       y: Shell.Theme.workspaceContentPadding
       width: expandedLayer.width
-      spacing: Shell.Theme.workspaceControlGap
+      spacing: Shell.Theme.workspaceRowGap
 
       Repeater {
         model: Shell.NiriMsg.workspaceRows
@@ -207,10 +207,10 @@ Shell.Card {
           }
           Rectangle {
             x: Shell.Theme.workspaceActiveIndicatorInset - expandedLayer.x
-            y: -Shell.Theme.workspaceControlGap / 2
+            y: -Shell.Theme.workspaceRowGap / 2
             width: root.width - Shell.Theme.workspaceActiveIndicatorInset * 2
-            height: parent.height + Shell.Theme.workspaceControlGap
-            radius: 12
+            height: Shell.Theme.workspaceRowPitch
+            radius: 10
             color: expandedWorkspace.model.isActive || expandedWorkspace.dragTarget
                 ? Shell.Theme.workspaceActiveIndicatorColor
                 : Qt.rgba(Shell.Theme.workspaceActiveIndicatorColor.r,
@@ -227,8 +227,9 @@ Shell.Card {
 
           MouseArea {
             x: -expandedLayer.x
+            y: -Shell.Theme.workspaceRowGap / 2
             width: Shell.Theme.sidebarCardExpandedWidth
-            height: parent.height
+            height: Shell.Theme.workspaceRowPitch
             acceptedButtons: Qt.LeftButton
             cursorShape: Qt.PointingHandCursor
             onClicked: root.focusRequested(
@@ -368,9 +369,9 @@ Shell.Card {
                     viewportX < 12 && expandedWorkspace.windowStart > 0 ? -1
                     : viewportX > windowViewport.width - 12 && expandedWorkspace.windowStart < lastStart ? 1 : 0
                 x: 0
-                y: expandedColumn.y + expandedWorkspace.y + 4
+                y: expandedColumn.y + expandedWorkspace.y - Shell.Theme.workspaceRowGap / 2
                 width: expandedWorkspace.width
-                height: 56
+                height: Shell.Theme.workspaceRowPitch
                 keys: ["pond-window"]
                 enabled: expandedLayer.enabled && expandedWorkspace.matchesOutput
                 onEntered: { updateSlot(); dragSession.destination = windowDrop; }
@@ -429,7 +430,7 @@ Shell.Card {
             anchors.verticalCenter: parent.verticalCenter
             z: 30
             width: 20
-            height: Shell.Theme.workspaceControlPitch
+            height: Shell.Theme.workspaceRowPitch
             visible: root.workspaceNumbersRevealed && expandedWorkspace.workspaceNumber > 0
             Rectangle {
               x: 3
@@ -495,9 +496,9 @@ Shell.Card {
             readonly property int workspaceId: Number(expandedWorkspace.model.workspaceId)
             readonly property int number: expandedWorkspace.workspaceNumber
             x: 0
-            y: expandedColumn.y + expandedWorkspace.y - Shell.Theme.workspaceControlGap / 2
+            y: expandedColumn.y + expandedWorkspace.y - Shell.Theme.workspaceRowGap / 2
             width: 20
-            height: Shell.Theme.workspaceControlPitch
+            height: Shell.Theme.workspaceRowPitch
             keys: ["pond-workspace"]
             enabled: expandedLayer.enabled && number > 0 && expandedWorkspace.matchesOutput
             onEntered: dragSession.destination = workspaceDrop
@@ -515,8 +516,8 @@ Shell.Card {
       visible: root.collapseProgress === 0
       x: Shell.Theme.workspaceContentPadding - expandedLayer.x
       y: Shell.Theme.workspaceContentPadding
-          + root.expandedVisibleRowCount * Shell.Theme.workspaceControlPitch
-      spacing: Shell.Theme.workspaceControlGap
+          + root.expandedVisibleRowCount * Shell.Theme.workspaceRowPitch
+      spacing: Shell.Theme.workspaceRowGap
 
       Repeater {
         model: Math.max(0, root.expandedRenderedRowCount
@@ -559,7 +560,7 @@ Shell.Card {
     Flow {
       id: collapsedFlow
       y: horizontal ? 0
-          : Shell.Theme.lerp(Shell.Theme.workspaceContentPadding, 0, root.heightProgress)
+          : Shell.Theme.lerp(Shell.Theme.workspaceContentPadding, 4, root.heightProgress)
       width: horizontal ? collapsedHorizontalWidth : Shell.Theme.sidebarCardCollapsedWidth
       flow: horizontal ? Flow.LeftToRight : Flow.TopToBottom
       spacing: horizontal ? 4 : 0
@@ -592,15 +593,15 @@ Shell.Card {
               Shell.Theme.workspaceCollapsedHeaderHeight
               + windowItems.length * Shell.Theme.workspaceCollapsedControlPitch
               - (windowItems.length > 0 ? Shell.Theme.workspaceCollapsedControlGap : 0)
-              + 13
+              + 4
 
           visible: matchesOutput
           width: Shell.Theme.sidebarCardCollapsedWidth
           property real targetHeight: !matchesOutput ? 0
-              : (active ? Math.max(42, activeHeight) : 41)
+              : (active && windowItems.length > 0 ? activeHeight : 41) + Shell.Theme.workspaceCollapsedControlGap
           height: !matchesOutput ? 0
               : root.horizontal ? Shell.Theme.sidebarCardCollapsedWidth
-              : Shell.Theme.lerp(Shell.Theme.workspaceControlPitch,
+              : Shell.Theme.lerp(Shell.Theme.workspaceRowPitch,
                   targetHeight, root.heightProgress)
 
           Behavior on targetHeight {
@@ -612,20 +613,16 @@ Shell.Card {
           }
 
           Rectangle {
-            x: 2
-            y: root.horizontal ? 2 : collapsedWorkspace.active ? 2 : 3
-            width: parent.width - 4
-            height: root.horizontal ? Math.max(0, parent.height - 4)
-                : Math.max(0, parent.height - (collapsedWorkspace.active ? 7 : 8))
-            radius: 13
-            color: collapsedWorkspace.active || collapsedRowPointer.containsMouse
-                ? Shell.Theme.workspaceActiveIndicatorColor
-                : Qt.rgba(Shell.Theme.workspaceActiveIndicatorColor.r,
-                          Shell.Theme.workspaceActiveIndicatorColor.g,
-                          Shell.Theme.workspaceActiveIndicatorColor.b, 0)
+            x: 4
+            y: root.horizontal ? 4 : 0
+            width: parent.width - 8
+            height: Math.max(0, parent.height - (root.horizontal ? 8 : Shell.Theme.workspaceCollapsedControlGap))
+            radius: 12
+            color: Shell.Theme.daylight ? Qt.rgba(1, 1, 1, 0.08) : Shell.Theme.workspaceActiveIndicatorColor
+            opacity: collapsedWorkspace.active || collapsedRowPointer.containsMouse ? 1 : 0
 
-            Behavior on color {
-              ColorAnimation {
+            Behavior on opacity {
+              NumberAnimation {
                 duration: Shell.Theme.sidebarWorkspaceSwitchDuration
                 easing.type: Easing.OutCubic
               }
@@ -634,18 +631,28 @@ Shell.Card {
 
           MouseArea {
             id: collapsedRowPointer
-            anchors.fill: parent
+            y: -4
+            width: parent.width
+            height: parent.height
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.focusRequested(
                 collapsedWorkspace.model.workspaceIndex)
           }
 
+          FontMetrics {
+            id: collapsedNumberMetrics
+            font: collapsedNumber.font
+          }
+
           Text {
+            id: collapsedNumber
+            readonly property real contentHeight: collapsedNumberMetrics.capitalHeight
+                + (windowDots.visible ? 8 : 0)
             x: 0
-            y: root.horizontal ? 7 : collapsedWorkspace.active ? 8 : 4
-            width: Shell.Theme.sidebarCardCollapsedWidth
-            height: root.horizontal ? 18 : 19
+            y: (41 - contentHeight) / 2
+                + collapsedNumberMetrics.capitalHeight - baselineOffset
+            width: parent.width
             text: collapsedWorkspace.displayNumber < 10
                 ? "0" + collapsedWorkspace.displayNumber
                 : String(collapsedWorkspace.displayNumber)
@@ -656,7 +663,6 @@ Shell.Card {
             font.weight: Font.Normal
             font.pixelSize: 13
             horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
 
             Behavior on opacity {
               NumberAnimation {
@@ -671,7 +677,8 @@ Shell.Card {
             x: 8
             y: Shell.Theme.workspaceCollapsedHeaderHeight * root.heightProgress
             width: Shell.Theme.workspaceCollapsedControlSize
-            height: collapsedWorkspace.windowItems.length * Shell.Theme.workspaceCollapsedControlPitch
+            height: Math.max(0, collapsedWorkspace.windowItems.length
+                * Shell.Theme.workspaceCollapsedControlPitch - Shell.Theme.workspaceCollapsedControlGap)
 
             Repeater {
               // Keep delegates alive when focus, title or activity changes.
@@ -689,10 +696,11 @@ Shell.Card {
           }
 
           Row {
+            id: windowDots
             visible: root.horizontal
                 ? collapsedWorkspace.windowItems.length > 0
                 : !collapsedWorkspace.active && collapsedWorkspace.windowItems.length > 0
-            y: root.horizontal ? 31 : 26
+            y: collapsedNumber.y + collapsedNumber.baselineOffset + 4
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 2
 
@@ -752,20 +760,14 @@ Shell.Card {
           }
 
           Rectangle {
-            x: 16
-            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: parent.height - Shell.Theme.workspaceCollapsedControlGap / 2 - height / 2
             width: 16
             height: 1
-            visible: !root.horizontal
-            color: Shell.Theme.sidebarV3Divider
-            opacity: 0.8
+            color: Shell.Theme.daylight ? Shell.Theme.sidebarCardOutline : Qt.alpha(Shell.Theme.sidebarV3Divider, 0.8)
+            visible: !root.horizontal && collapsedWorkspace.y + collapsedWorkspace.height < collapsedFlow.height - 0.5
           }
         }
-      }
-
-      Item {
-        width: Shell.Theme.sidebarCardCollapsedWidth
-        height: 3
       }
     }
   }
